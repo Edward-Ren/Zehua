@@ -1,0 +1,89 @@
+body {
+  font-family: Georgia, "Times New Roman", serif;
+  background: #dfe8c8;
+  margin: 0;
+  padding: 10px;
+  padding-bottom: 100px;
+  max-width: 620px;
+}
+
+.contact-layout {
+  display: flex;
+  flex-direction: column;
+  min-height: calc(100vh - 110px);
+  min-height: calc(100svh - 110px);
+}
+
+.contact-layout main {
+  flex-shrink: 0;
+}
+
+.site-contact {
+  margin-top: auto;
+  padding-top: 38px;
+  font-size: 14px;
+}
+
+.entry-heading {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px 16px;
+}
+
+.page-navigation {
+  margin-top: 32px;
+}
+
+.blog-posts a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.blog-entry {
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+}
+
+.post-date {
+  color: #555;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.blog-posts a:hover,
+.blog-posts a:focus-visible {
+  text-decoration: underline;
+}
+
+.post-title {
+  font-size: 1em;
+  font-weight: normal;
+}
+
+.post-section {
+  margin-top: 28px;
+}
+
+.post-section h3 {
+  font-size: 1em;
+  margin-bottom: 8px;
+}
+
+.post-section p {
+  margin-top: 0;
+}
+
+.rabbits {
+  position: fixed;
+  left: 6px;
+  bottom: 6px;
+}
+
+.rabbits img {
+  display: block;
+  width: 70px;
+  height: auto;
+}

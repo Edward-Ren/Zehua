@@ -1,0 +1,953 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>从 Semantics 到 Category Theory | 泽华Zehua</title>
+  <link rel="stylesheet" href="../style.css" />
+  <style>
+    html { scroll-behavior: smooth; }
+    article { line-height: 1.65; }
+    .post-title, .post-section h3 { scroll-margin-top: 20px; }
+    .post-toc { margin: 28px 0; }
+    .post-toc h3 { font-size: 1em; margin-bottom: 8px; }
+    .post-toc ul { padding-left: 1.25em; margin: 0; list-style: none; }
+    .post-toc > ul { padding-left: 0; list-style: none; }
+    .post-toc a, .post-toc a:visited { color: #0000ee; }
+    .post-toc a:focus-visible { outline: 2px solid currentColor; outline-offset: 3px; }
+    .equation { margin: 16px 0; overflow-x: auto; overflow-y: hidden; padding: 6px 0; }
+    math { font-family: "Cambria Math", "STIX Two Math", math; font-size: 1.05em; line-height: normal; }
+    .equation math { margin: 0 auto; }
+    .post-section ul { padding-left: 1.75em; }
+    .commutative-diagram { margin: 20px auto; max-width: 280px; }
+    .commutative-diagram svg { display: block; width: 100%; height: auto; }
+    .commutative-diagram text { fill: currentColor; font-family: "Cambria Math", Georgia, "Times New Roman", serif; font-size: 22px; font-style: italic; text-anchor: middle; }
+    .commutative-diagram .arrow-label { font-size: 18px; }
+    .post-section h4 { font-size: 1em; margin: 24px 0 8px; scroll-margin-top: 20px; }
+    .category-comparison { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
+    .category-comparison .commutative-diagram { width: 100%; }
+    .commutative-diagram .diagram-heading { font-style: normal; font-weight: bold; }
+    .commutative-diagram .base-point { color: #245a91; }
+    .lemma-diagram { max-width: 360px; }
+    @media (max-width: 480px) {
+      .category-comparison { grid-template-columns: 1fr; gap: 0; }
+    }
+    @media (max-width: 360px) {
+      .equation math { font-size: 0.95em; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+  <article>
+    <h2 class="post-title" id="article-title">从 Semantics 到 Category Theory</h2>
+    <nav class="post-toc" aria-labellMedby="toc-title">
+      <h3 id="toc-title">Table of Contents</h3>
+      <ul>
+        <li><a href="#semantics-category-theory">1. Motivation：从 error propagation 说起</a></li>
+        <li><a href="#category">2. Category：Objects 和 Morphisms</a>
+          <ul>
+            <li><a href="#set">2.1 Example 1：Set</a></li>
+            <li><a href="#based-set">2.2 Example 2：Set•</a></li>
+            <li><a href="#rel">2.3 Example 3：Rel</a></li>
+            <li><a href="#set-and-rel">2.4 Set 和 Rel 的区别</a></li>
+          </ul>
+        </li>
+        <li><a href="#diagram">3. Diagram 和 Commutativity</a></li>
+        <li><a href="#isomorphism">4. Isomorphism</a></li>
+        <li><a href="#functor">5. 再抽象一次：Functor</a>
+          <ul>
+            <li><a href="#forgetful-functor">5.1 Functor Example 1：Forgetful Functor</a></li>
+            <li><a href="#functor-example-2">5.2 Functor Example 2：Graph Functor</a></li>
+          </ul>
+        </li>
+        <li><a href="#lemma-2-9">6. Lemma 2.9：给 Set 加一个 base point</a></li>
+        <li><a href="#lemma-2-9-proof">7. Lemma 2.9 的证明（通俗版）</a></li>
+        <li><a href="#context-substitution">8. Context 和 Substitution</a>
+          <ul>
+            <li><a href="#example-3-2">8.1 Example 3.2</a></li>
+            <li><a href="#lemma-3-3">8.2 Lemma 3.3</a></li>
+          </ul>
+        </li>
+        <li><a href="#classifying-category">9. Classifying Category</a>
+        </li>
+        <li><a href="#functorial-semantics">10. Functorial Semantics</a>
+          <ul>
+            <li><a href="#theorem-3-4">10.1 Theorem 3.4</a></li>
+            <li><a href="#example-3-5">10.2 Example 3.5</a></li>
+          </ul>
+        </li>
+        <li><a href="#natural-transformation">11. Natural Transformation</a>
+          <ul>
+            <li><a href="#natural-transformation-definition">11.1 Definition 3.6</a></li>
+            <li><a href="#theorem-3-7">11.2 Theorem 3.7</a></li>
+            <li><a href="#lemma-3-8">11.3 Lemma 3.8</a></li>
+            <li><a href="#example-3-9">11.4 Example 3.9</a></li>
+          </ul>
+        </li>
+      </ul>
+    </nav>
+
+    <section class="post-section">
+      <h3 id="semantics-category-theory">1. Motivation：从 error propagation 说起</h3>
+      <p>比如在 denotational semantics 里，我们给程序一个数学上的 meaning：</p>
+      <div class="equation">
+        <math display="block"><mrow><mo>⟦</mo><mn>3</mn><mo>+</mo><mn>5</mn><mo>⟧</mo><mo>=</mo><mn>8</mn></mrow></math>
+      </div>
+      <p>但是：</p>
+      <div class="equation">
+        <math display="block"><mrow><mn>3</mn><mo>÷</mo><mn>0</mn></mrow></math>
+      </div>
+      <p>就会出现 error。因此，原本的结果空间 <math><msub><mi>ℚ</mi><mrow><mo>≥</mo><mn>0</mn></mrow></msub></math> 需要扩展成：</p>
+      <div class="equation">
+        <math display="block"><mrow><mi>D</mi><mo>=</mo><msub><mi>ℚ</mi><mrow><mo>≥</mo><mn>0</mn></mrow></msub><mo>∪</mo><mo>{</mo><mi mathvariant="normal">err</mi><mo>}</mo></mrow></math>
+      </div>
+      <p>然后每个 operation 都需要处理 error propagation。比如一个二元操作 <math><mi>f</mi></math>，需要扩展成：</p>
+      <div class="equation">
+        <math display="block"><mrow><mover><mi>f</mi><mo>¯</mo></mover><mo stretchy="false">(</mo><mi>x</mi><mo>,</mo><mi>y</mi><mo stretchy="false">)</mo><mo>=</mo><mo>{</mo><mtable columnalign="left left" columnspacing="1em" rowspacing="0.4em"><mtr><mtd><mi>f</mi><mo stretchy="false">(</mo><mi>x</mi><mo>,</mo><mi>y</mi><mo stretchy="false">)</mo></mtd><mtd><mi>x</mi><mo>≠</mo><mi mathvariant="normal">err</mi><mo>,</mo><mspace width="0.3em"/><mi>y</mi><mo>≠</mo><mi mathvariant="normal">err</mi></mtd></mtr><mtr><mtd><mi mathvariant="normal">err</mi></mtd><mtd><mtext>otherwise</mtext></mtd></mtr></mtable></mrow></math>
+      </div>
+      <p>对于除法，分母为 0 时，<math><mi>f</mi></math> 本身也取 err。</p>
+      <p>这样写当然没错，但是会重复。加法这样写，乘法这样写，除法还是这样写。</p>
+      <p>这里真正重复的不是 operation，而是：如何给一个 computation space 加入 failure，以及之后的 maps 如何 preserve 这个 failure。</p>
+      <p>所以我们希望把这种 structure 单独抽出来，而不是每次重新写 case distinction。这也是 Category Theory 在这里出现的 motivation。</p>
+      <p>后面我们会看到，刚才的 err 可以先被重新理解成一个 base point，然后“给一个 set 加入一个 base point”这件事情本身还可以继续 generalize。</p>
+    </section>
+
+    <section class="post-section">
+      <h3 id="category">2. Category：Objects 和 Morphisms</h3>
+      <p>一个 category <math><mi>𝒞</mi></math> 里面有一类 objects。对于两个 objects <math><mi>A</mi></math> 和 <math><mi>B</mi></math>，可以有从 <math><mi>A</mi></math> 到 <math><mi>B</mi></math> 的 morphisms：</p>
+      <div class="equation">
+        <math display="block"><mrow><mi>f</mi><mo>:</mo><mi>A</mi><mo>→</mo><mi>B</mi></mrow></math>
+      </div>
+      <p>但是只有 objects 和 morphisms 还不够。Category 还要求这些 morphisms 具有两种基本 structure：identity 和 composition。</p>
+      <p>对于每一个 object <math><mi>A</mi></math>，都必须存在一个 identity morphism：</p>
+      <div class="equation">
+        <math display="block"><mrow><msub><mi mathvariant="normal">id</mi><mi>A</mi></msub><mo>:</mo><mi>A</mi><mo>→</mo><mi>A</mi></mrow></math>
+      </div>
+      <p>它可以理解成“什么都不做”。另外，如果两个 morphisms 可以首尾连接：</p>
+      <div class="equation">
+        <math display="block"><mrow><mi>f</mi><mo>:</mo><mi>A</mi><mo>→</mo><mi>B</mi><mo>,</mo><mspace width="1em"/><mi>g</mi><mo>:</mo><mi>B</mi><mo>→</mo><mi>C</mi></mrow></math>
+      </div>
+      <p>那么它们可以 compose，得到：</p>
+      <div class="equation">
+        <math display="block"><mrow><mi>g</mi><mo>∘</mo><mi>f</mi><mo>:</mo><mi>A</mi><mo>→</mo><mi>C</mi></mrow></math>
+      </div>
+      <p>这里注意，先做的是 <math><mi>f</mi></math>，再做 <math><mi>g</mi></math>。Identity 和 composition 还必须满足两个基本规律。</p>
+      <p>Identity law：</p>
+      <div class="equation">
+        <math display="block"><mrow><msub><mi mathvariant="normal">id</mi><mi>B</mi></msub><mo>∘</mo><mi>f</mi><mo>=</mo><mi>f</mi><mo>=</mo><mi>f</mi><mo>∘</mo><msub><mi mathvariant="normal">id</mi><mi>A</mi></msub></mrow></math>
+      </div>
+      <p>Associativity（对于可组合的 <math><mi>f</mi><mo>,</mo><mi>g</mi><mo>,</mo><mi>h</mi></math>）：</p>
+      <div class="equation">
+        <math display="block"><mrow><mi>h</mi><mo>∘</mo><mo stretchy="false">(</mo><mi>g</mi><mo>∘</mo><mi>f</mi><mo stretchy="false">)</mo><mo>=</mo><mo stretchy="false">(</mo><mi>h</mi><mo>∘</mo><mi>g</mi><mo stretchy="false">)</mo><mo>∘</mo><mi>f</mi></mrow></math>
+      </div>
+      <p>所以更准确地说，一个 category 包含 objects、objects 之间的 morphisms，以及 morphisms 上定义的 identity 和 composition，并且满足上面两个规律。</p>
+      <p>Category Theory 关注的重点不是 object 内部有什么，而是 objects 之间有什么关系，以及这些关系怎样组合。下面看几个例子。</p>
+    </section>
+
+    <section class="post-section">
+      <h4 id="set">2.1 Example 1：Set</h4>
+      <p>最熟悉的例子就是 Set。在 Set 里面：</p>
+      <ul>
+        <li>sets 是 objects；</li>
+        <li>functions 是 morphisms。</li>
+      </ul>
+      <p>例如 <math><mi>f</mi><mo>:</mo><mi>X</mi><mo>→</mo><mi>Y</mi></math>，其中 <math><mi>X</mi></math>、<math><mi>Y</mi></math> 是两个 sets。Identity morphism 就是普通的 identity function：</p>
+      <div class="equation">
+        <math display="block"><mrow><msub><mi mathvariant="normal">id</mi><mi>X</mi></msub><mo>:</mo><mi>X</mi><mo>→</mo><mi>X</mi><mo>,</mo><mspace width="1em"/><msub><mi mathvariant="normal">id</mi><mi>X</mi></msub><mo stretchy="false">(</mo><mi>x</mi><mo stretchy="false">)</mo><mo>=</mo><mi>x</mi></mrow></math>
+      </div>
+      <p>Composition 也是普通的 function composition。如果 <math><mi>f</mi><mo>:</mo><mi>X</mi><mo>→</mo><mi>Y</mi></math>，<math><mi>g</mi><mo>:</mo><mi>Y</mi><mo>→</mo><mi>Z</mi></math>，那么 <math><mi>g</mi><mo>∘</mo><mi>f</mi><mo>:</mo><mi>X</mi><mo>→</mo><mi>Z</mi></math>，并且：</p>
+      <div class="equation">
+        <math display="block"><mrow><mo stretchy="false">(</mo><mi>g</mi><mo>∘</mo><mi>f</mi><mo stretchy="false">)</mo><mo stretchy="false">(</mo><mi>x</mi><mo stretchy="false">)</mo><mo>=</mo><mi>g</mi><mo stretchy="false">(</mo><mi>f</mi><mo stretchy="false">(</mo><mi>x</mi><mo stretchy="false">)</mo><mo stretchy="false">)</mo></mrow></math>
+      </div>
+      <p>所以我们平时使用 sets 和 functions，其实已经是在一个 category 里面工作了。</p>
+    </section>
+
+    <section class="post-section">
+      <h4 id="based-set">2.2 Example 2：Set•</h4>
+      <p>第二个例子和最开始的 err 就开始有关系了。Set• 是 based sets 的 category。它的 objects 是：</p>
+      <div class="equation">
+        <math display="block"><mrow><mo stretchy="false">(</mo><mi>X</mi><mo>,</mo><msub><mi>x</mi><mn>0</mn></msub><mo stretchy="false">)</mo></mrow></math>
+      </div>
+      <p>其中 <math><msub><mi>x</mi><mn>0</mn></msub><mo>∈</mo><mi>X</mi></math> 是一个 distinguished point，也就是 base point。而 morphism：</p>
+      <div class="equation">
+        <math display="block"><mrow><mi>f</mi><mo>:</mo><mo stretchy="false">(</mo><mi>X</mi><mo>,</mo><msub><mi>x</mi><mn>0</mn></msub><mo stretchy="false">)</mo><mo>→</mo><mo stretchy="false">(</mo><mi>Y</mi><mo>,</mo><msub><mi>y</mi><mn>0</mn></msub><mo stretchy="false">)</mo></mrow></math>
+      </div>
+      <p>不仅需要是一个 function，还必须 preserve base point：</p>
+      <div class="equation">
+        <math display="block"><mrow><mi>f</mi><mo stretchy="false">(</mo><msub><mi>x</mi><mn>0</mn></msub><mo stretchy="false">)</mo><mo>=</mo><msub><mi>y</mi><mn>0</mn></msub></mrow></math>
+      </div>
+      <figure class="commutative-diagram">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 280 126" role="img" aria-labelledby="based-map-title based-map-desc">
+          <title id="based-map-title">Based map preserves base point</title>
+          <desc id="based-map-desc">f 从 (X, x₀) 映射到 (Y, y₀)，并且 f(x₀) = y₀。蓝色突出两个 base points。</desc>
+          <defs>
+            <marker id="based-map-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+              <path d="M 1 1 L 9 5 L 1 9" fill="none" stroke="currentColor" stroke-width="1.2" />
+            </marker>
+          </defs>
+          <path d="M 90 42 H 186" fill="none" stroke="currentColor" stroke-width="1.2" marker-end="url(#based-map-arrow)" />
+          <text x="47" y="49">(X, <tspan class="base-point">x<tspan baseline-shift="sub" font-size="14">0</tspan></tspan>)</text>
+          <text x="233" y="49">(Y, <tspan class="base-point">y<tspan baseline-shift="sub" font-size="14">0</tspan></tspan>)</text>
+          <text class="arrow-label" x="140" y="28">f</text>
+          <text class="base-point" x="140" y="101">f(x<tspan baseline-shift="sub" font-size="14">0</tspan>) = y<tspan baseline-shift="sub" font-size="14">0</tspan></text>
+        </svg>
+      </figure>
+      <p>所以回头看前面的 <math><mi>D</mi><mo>=</mo><msub><mi>ℚ</mi><mrow><mo>≥</mo><mn>0</mn></mrow></msub><mo>∪</mo><mo>{</mo><mi mathvariant="normal">err</mi><mo>}</mo></math>。如果把 err 指定为 base point，那么：</p>
+      <div class="equation">
+        <math display="block"><mrow><mo stretchy="false">(</mo><mi>D</mi><mo>,</mo><mi mathvariant="normal">err</mi><mo stretchy="false">)</mo></mrow></math>
+      </div>
+      <p>其实就是一个 object in Set•。这样 err 就不再只是 semantics 定义里面临时添加的一个特殊 case，而成为了 object 本身携带的一部分 structure。</p>
+      <p>不过到这里，我们只是把 error 结构化了。至于能不能进一步把“给一个 set 添加 error”这件事情本身也统一起来，我们后面讲 functor 的时候再回来。</p>
+    </section>
+
+    <section class="post-section">
+      <h4 id="rel">2.3 Example 3：Rel</h4>
+      <p>再看 Rel。Rel 的 objects 仍然是 sets，但是 morphisms 不再是 functions，而是 relations。例如：</p>
+      <div class="equation">
+        <math display="block"><mrow><mi>R</mi><mo>:</mo><mi>A</mi><mo>→</mo><mi>B</mi><mo>,</mo><mspace width="1em"/><mi>R</mi><mo>⊆</mo><mi>A</mi><mo>×</mo><mi>B</mi></mrow></math>
+      </div>
+      <p>这里可以看出一个很重要的点：morphism 不一定是 function。在 Rel 里面，object <math><mi>A</mi></math> 的 identity morphism 是：</p>
+      <div class="equation">
+        <math display="block"><mrow><msub><mi mathvariant="normal">id</mi><mi>A</mi></msub><mo>=</mo><mo>{</mo><mo stretchy="false">(</mo><mi>a</mi><mo>,</mo><mi>a</mi><mo stretchy="false">)</mo><mo>∣</mo><mi>a</mi><mo>∈</mo><mi>A</mi><mo>}</mo></mrow></math>
+      </div>
+      <p>如果 <math><mi>R</mi><mo>:</mo><mi>A</mi><mo>→</mo><mi>B</mi></math>，<math><mi>S</mi><mo>:</mo><mi>B</mi><mo>→</mo><mi>C</mi></math>，那么 composition 是：</p>
+      <div class="equation">
+        <math display="block"><mrow><mi>S</mi><mo>∘</mo><mi>R</mi><mo>=</mo><mo>{</mo><mtable columnalign="left" rowspacing="0.3em"><mtr><mtd><mo stretchy="false">(</mo><mi>a</mi><mo>,</mo><mi>c</mi><mo stretchy="false">)</mo><mo>∣</mo><mo>∃</mo><mi>b</mi><mo>∈</mo><mi>B</mi><mo>:</mo></mtd></mtr><mtr><mtd><mo stretchy="false">(</mo><mi>a</mi><mo>,</mo><mi>b</mi><mo stretchy="false">)</mo><mo>∈</mo><mi>R</mi><mo>∧</mo><mo stretchy="false">(</mo><mi>b</mi><mo>,</mo><mi>c</mi><mo stretchy="false">)</mo><mo>∈</mo><mi>S</mi></mtd></mtr></mtable><mo>}</mo></mrow></math>
+      </div>
+      <p>所以 Rel 同样有 identity 和 composition，并且满足 identity law 和 associativity。Category 真正在意的不是 morphism 到底是不是 function，而是这些 morphisms 能不能 compose，以及 composition 是否 obey category laws。</p>
+    </section>
+
+    <section class="post-section">
+      <h4 id="set-and-rel">2.4 Set 和 Rel 的区别</h4>
+      <p>Set 和 Rel 的 objects 都是 sets，但它们不是同一个 category。真正不同的是 morphisms。</p>
+      <p>Set：</p>
+      <ul>
+        <li>objects = sets；</li>
+        <li>morphisms = functions <math><mi>f</mi><mo>:</mo><mi>A</mi><mo>→</mo><mi>B</mi></math>；</li>
+        <li>每个 <math><mi>a</mi><mo>∈</mo><mi>A</mi></math> 必须对应唯一一个 <math><mi>b</mi><mo>∈</mo><mi>B</mi></math>。</li>
+      </ul>
+      <p>Rel：</p>
+      <ul>
+        <li>objects = sets；</li>
+        <li>morphisms = relations <math><mi>R</mi><mo>⊆</mo><mi>A</mi><mo>×</mo><mi>B</mi></math>；</li>
+        <li>一个 <math><mi>a</mi></math> 可以对应 0 个、1 个或者多个 <math><mi>b</mi></math>。</li>
+      </ul>
+      <div class="category-comparison">
+        <figure class="commutative-diagram">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 280 244" role="img" aria-labelledby="set-map-title set-map-desc">
+            <title id="set-map-title">Set：每个输入恰好有一个输出</title>
+            <desc id="set-map-desc">集合 A 和 B 各有三个元素。函数 f 将 a₁ 映射到 b₁，a₂ 映射到 b₂，a₃ 映射到 b₃。</desc>
+            <defs>
+              <marker id="set-map-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+                <path d="M 1 1 L 9 5 L 1 9" fill="none" stroke="currentColor" stroke-width="1.2" />
+              </marker>
+            </defs>
+            <text class="diagram-heading" x="140" y="25">Set</text>
+            <text x="54" y="64">A</text><text x="226" y="64">B</text>
+            <text class="arrow-label" x="140" y="64">f : A → B</text>
+            <g fill="none" stroke="currentColor" stroke-width="1.1">
+              <ellipse cx="54" cy="151" rx="43" ry="73" />
+              <ellipse cx="226" cy="151" rx="43" ry="73" />
+              <g marker-end="url(#set-map-arrow)">
+                <path d="M 77 108 H 200" /><path d="M 77 151 H 200" /><path d="M 77 194 H 200" />
+              </g>
+            </g>
+            <g fill="currentColor">
+              <circle cx="71" cy="108" r="3" /><circle cx="71" cy="151" r="3" /><circle cx="71" cy="194" r="3" />
+              <circle cx="207" cy="108" r="3" /><circle cx="207" cy="151" r="3" /><circle cx="207" cy="194" r="3" />
+            </g>
+            <text x="43" y="114">a<tspan baseline-shift="sub" font-size="14">1</tspan></text>
+            <text x="43" y="157">a<tspan baseline-shift="sub" font-size="14">2</tspan></text>
+            <text x="43" y="200">a<tspan baseline-shift="sub" font-size="14">3</tspan></text>
+            <text x="238" y="114">b<tspan baseline-shift="sub" font-size="14">1</tspan></text>
+            <text x="238" y="157">b<tspan baseline-shift="sub" font-size="14">2</tspan></text>
+            <text x="238" y="200">b<tspan baseline-shift="sub" font-size="14">3</tspan></text>
+          </svg>
+        </figure>
+        <figure class="commutative-diagram">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 280 244" role="img" aria-labelledby="rel-map-title rel-map-desc">
+            <title id="rel-map-title">Rel：一个输入可以对应零个、一个或多个输出</title>
+            <desc id="rel-map-desc">与左侧相同的集合 A 和 B。关系 R 将 a₁ 关联到 b₁ 和 b₂，a₂ 没有关联的元素，a₃ 关联到 b₃。</desc>
+            <defs>
+              <marker id="rel-map-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+                <path d="M 1 1 L 9 5 L 1 9" fill="none" stroke="currentColor" stroke-width="1.2" />
+              </marker>
+            </defs>
+            <text class="diagram-heading" x="140" y="25">Rel</text>
+            <text x="54" y="64">A</text><text x="226" y="64">B</text>
+            <text class="arrow-label" x="140" y="64">R ⊆ A × B</text>
+            <g fill="none" stroke="currentColor" stroke-width="1.1">
+              <ellipse cx="54" cy="151" rx="43" ry="73" />
+              <ellipse cx="226" cy="151" rx="43" ry="73" />
+              <g marker-end="url(#rel-map-arrow)">
+                <path d="M 77 108 H 200" /><path d="M 77 110 L 200 149" /><path d="M 77 194 H 200" />
+              </g>
+            </g>
+            <g fill="currentColor">
+              <circle cx="71" cy="108" r="3" /><circle cx="71" cy="151" r="3" /><circle cx="71" cy="194" r="3" />
+              <circle cx="207" cy="108" r="3" /><circle cx="207" cy="151" r="3" /><circle cx="207" cy="194" r="3" />
+            </g>
+            <text x="43" y="114">a<tspan baseline-shift="sub" font-size="14">1</tspan></text>
+            <text x="43" y="157">a<tspan baseline-shift="sub" font-size="14">2</tspan></text>
+            <text x="43" y="200">a<tspan baseline-shift="sub" font-size="14">3</tspan></text>
+            <text x="238" y="114">b<tspan baseline-shift="sub" font-size="14">1</tspan></text>
+            <text x="238" y="157">b<tspan baseline-shift="sub" font-size="14">2</tspan></text>
+            <text x="238" y="200">b<tspan baseline-shift="sub" font-size="14">3</tspan></text>
+          </svg>
+        </figure>
+      </div>
+      <p>函数其实只是 relation 的一种特殊情况。</p>
+      <p>所以 object 一样，不代表 category 一样；还要看 morphisms、identity 和 composition 是怎样定义的。</p>
+    </section>
+
+    <section class="post-section">
+      <h3 id="diagram">3. Diagram 和 Commutativity</h3>
+      <p>当然，我们是视觉动物。Category Theory 里面经常直接用 diagram 表示 objects 和 morphisms。</p>
+      <figure class="commutative-diagram">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 280 190" role="img" aria-labelledby="square-title square-desc">
+          <title id="square-title">交换方形图</title>
+          <desc id="square-desc">左上 A 经 f 到右上 B，经 g 到右下 C；左上 A 经 identity 到左下 A，再经 h 到 C。两条路径的复合相等。</desc>
+          <defs>
+            <marker id="square-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+              <path d="M 1 1 L 9 5 L 1 9" fill="none" stroke="currentColor" stroke-width="1.2" />
+            </marker>
+          </defs>
+          <g fill="none" stroke="currentColor" stroke-width="1.2" marker-end="url(#square-arrow)">
+            <path d="M 77 40 H 206" />
+            <path d="M 62 55 V 139" />
+            <path d="M 220 55 V 139" />
+            <path d="M 77 156 H 206" />
+          </g>
+          <text x="62" y="47">A</text>
+          <text x="220" y="47">B</text>
+          <text x="62" y="163">A</text>
+          <text x="220" y="163">C</text>
+          <text class="arrow-label" x="141" y="28">f</text>
+          <text class="arrow-label" x="33" y="103"><tspan font-style="normal">id</tspan><tspan baseline-shift="sub" font-size="12">A</tspan></text>
+          <text class="arrow-label" x="238" y="103">g</text>
+          <text class="arrow-label" x="141" y="180">h</text>
+        </svg>
+      </figure>
+      <div class="equation">
+        <math display="block"><mrow><mi>g</mi><mo>∘</mo><mi>f</mi><mo>=</mo><mi>h</mi><mo>∘</mo><msub><mi mathvariant="normal">id</mi><mi>A</mi></msub></mrow></math>
+      </div>
+      <p>如果从同一个 object 出发，到同一个 object 结束，不同 path 对应的 composed morphisms 相等，我们就说这个 diagram commutes。</p>
+      <p>也就是：different paths, same result.</p>
+      <p>因为 <math><mi>h</mi><mo>∘</mo><msub><mi mathvariant="normal">id</mi><mi>A</mi></msub><mo>=</mo><mi>h</mi></math>，所以这里其实也可以写成：</p>
+      <div class="equation">
+        <math display="block"><mrow><mi>g</mi><mo>∘</mo><mi>f</mi><mo>=</mo><mi>h</mi></mrow></math>
+      </div>
+      <figure class="commutative-diagram">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 280 190" role="img" aria-labelledby="triangle-title triangle-desc">
+          <title id="triangle-title">交换三角图</title>
+          <desc id="triangle-desc">A 经 f 到 B，再经 g 到 C，等于 A 直接经 h 到 C。</desc>
+          <defs>
+            <marker id="triangle-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+              <path d="M 1 1 L 9 5 L 1 9" fill="none" stroke="currentColor" stroke-width="1.2" />
+            </marker>
+          </defs>
+          <g fill="none" stroke="currentColor" stroke-width="1.2" marker-end="url(#triangle-arrow)">
+            <path d="M 77 40 H 206" />
+            <path d="M 220 55 V 139" />
+            <path d="M 76 52 L 205 146" />
+          </g>
+          <text x="62" y="47">A</text>
+          <text x="220" y="47">B</text>
+          <text x="220" y="163">C</text>
+          <text class="arrow-label" x="141" y="28">f</text>
+          <text class="arrow-label" x="238" y="103">g</text>
+          <text class="arrow-label" x="128" y="116">h</text>
+        </svg>
+      </figure>
+    </section>
+
+    <section class="post-section">
+      <h3 id="isomorphism">4. Isomorphism</h3>
+      <p>如果有 <math><mi>f</mi><mo>:</mo><mi>A</mi><mo>→</mo><mi>B</mi></math>，并且存在 <math><mi>g</mi><mo>:</mo><mi>B</mi><mo>→</mo><mi>A</mi></math>，满足：</p>
+      <div class="equation">
+        <math display="block"><mrow><mi>g</mi><mo>∘</mo><mi>f</mi><mo>=</mo><msub><mi mathvariant="normal">id</mi><mi>A</mi></msub><mo>,</mo><mspace width="1.5em"/><mi>f</mi><mo>∘</mo><mi>g</mi><mo>=</mo><msub><mi mathvariant="normal">id</mi><mi>B</mi></msub></mrow></math>
+      </div>
+      <p>那么 <math><mi>f</mi></math> 是一个 isomorphism，<math><mi>g</mi></math> 是它的 inverse。写成：</p>
+      <div class="equation">
+        <math display="block"><mrow><mi>A</mi><mo>≅</mo><mi>B</mi></mrow></math>
+      </div>
+      <p>意思不是 <math><mi>A</mi></math> 和 <math><mi>B</mi></math> literally equal，而是它们在当前 category 关心的 structure 下可以互相转换，并且不丢信息。在 Set 里面，isomorphism 就是 bijection。</p>
+    </section>
+
+    <section class="post-section">
+      <h3 id="functor">5. 再抽象一次：Functor</h3>
+      <p>有了 category 之后，自然可以继续问：category 和 category 之间的 structure 怎样对应？这里就需要引入 functor：</p>
+      <div class="equation">
+        <math display="block"><mrow><mi>F</mi><mo>:</mo><mi>𝒞</mi><mo>→</mo><mi>𝒟</mi></mrow></math>
+      </div>
+      <p>因为一个 category 本身有 objects 和 morphisms，所以 functor 需要同时处理这两部分。</p>
+      <p>对于 object：</p>
+      <div class="equation">
+        <math display="block"><mrow><mi>A</mi><mo>↦</mo><mi>F</mi><mo stretchy="false">(</mo><mi>A</mi><mo stretchy="false">)</mo></mrow></math>
+      </div>
+      <p>对于 morphism <math><mi>f</mi><mo>:</mo><mi>A</mi><mo>→</mo><mi>B</mi></math>，变成：</p>
+      <div class="equation">
+        <math display="block"><mrow><mi>F</mi><mo stretchy="false">(</mo><mi>f</mi><mo stretchy="false">)</mo><mo>:</mo><mi>F</mi><mo stretchy="false">(</mo><mi>A</mi><mo stretchy="false">)</mo><mo>→</mo><mi>F</mi><mo stretchy="false">(</mo><mi>B</mi><mo stretchy="false">)</mo></mrow></math>
+      </div>
+      <p>但是 functor 不能乱 mapping。它必须 preserve category 最重要的两种 structure：identity 和 composition。</p>
+      <div class="equation">
+        <math display="block"><mrow><mi>F</mi><mo stretchy="false">(</mo><msub><mi mathvariant="normal">id</mi><mi>A</mi></msub><mo stretchy="false">)</mo><mo>=</mo><msub><mi mathvariant="normal">id</mi><mrow><mi>F</mi><mo stretchy="false">(</mo><mi>A</mi><mo stretchy="false">)</mo></mrow></msub></mrow></math>
+      </div>
+      <div class="equation">
+        <math display="block"><mrow><mi>F</mi><mo stretchy="false">(</mo><mi>g</mi><mo>∘</mo><mi>f</mi><mo stretchy="false">)</mo><mo>=</mo><mi>F</mi><mo stretchy="false">(</mo><mi>g</mi><mo stretchy="false">)</mo><mo>∘</mo><mi>F</mi><mo stretchy="false">(</mo><mi>f</mi><mo stretchy="false">)</mo></mrow></math>
+      </div>
+      <p>所以 functor 本质上就是：structure-preserving mapping between categories.</p>
+      <p>也可以理解成，它会 preserve commutative diagrams。如果原来 <math><mi>g</mi><mo>∘</mo><mi>f</mi><mo>=</mo><mi>h</mi></math>，那么：</p>
+      <div class="equation">
+        <math display="block"><mrow><mi>F</mi><mo stretchy="false">(</mo><mi>g</mi><mo stretchy="false">)</mo><mo>∘</mo><mi>F</mi><mo stretchy="false">(</mo><mi>f</mi><mo stretchy="false">)</mo><mo>=</mo><mi>F</mi><mo stretchy="false">(</mo><mi>h</mi><mo stretchy="false">)</mo></mrow></math>
+      </div>
+      <p>所以原本 commute 的 diagram，经过 functor 之后仍然 commute。</p>
+      <p>Category 里面有 morphisms。Category 和 Category 之间有 functors。</p>
+    </section>
+
+    <section class="post-section">
+      <h4 id="forgetful-functor">5.1 Functor Example 1：Forgetful Functor</h4>
+      <p>一个很直观的例子是：</p>
+      <div class="equation">
+        <math display="block"><mrow><mi>U</mi><mo>:</mo><msub><mi>𝐒𝐞𝐭</mi><mo>•</mo></msub><mo>→</mo><mi>𝐒𝐞𝐭</mi></mrow></math>
+      </div>
+      <p>对于一个 based set <math><mo stretchy="false">(</mo><mi>X</mi><mo>,</mo><msub><mi>x</mi><mn>0</mn></msub><mo stretchy="false">)</mo></math>，定义：</p>
+      <div class="equation">
+        <math display="block"><mrow><mi>U</mi><mo stretchy="false">(</mo><mi>X</mi><mo>,</mo><msub><mi>x</mi><mn>0</mn></msub><mo stretchy="false">)</mo><mo>=</mo><mi>X</mi></mrow></math>
+      </div>
+      <p>也就是说，把 base point 这层额外的 structure 忘掉。对于一个 based map：</p>
+      <div class="equation">
+        <math display="block"><mrow><mi>f</mi><mo>:</mo><mo stretchy="false">(</mo><mi>X</mi><mo>,</mo><msub><mi>x</mi><mn>0</mn></msub><mo stretchy="false">)</mo><mo>→</mo><mo stretchy="false">(</mo><mi>Y</mi><mo>,</mo><msub><mi>y</mi><mn>0</mn></msub><mo stretchy="false">)</mo></mrow></math>
+      </div>
+      <p>定义：</p>
+      <div class="equation">
+        <math display="block"><mrow><mi>U</mi><mo stretchy="false">(</mo><mi>f</mi><mo stretchy="false">)</mo><mo>=</mo><mi>f</mi></mrow></math>
+      </div>
+      <p>function 本身没有变化，只是不再关心它 preserve base point 这件事。所以 <math><mi>U</mi></math> 被称为 forgetful functor。</p>
+    </section>
+
+    <section class="post-section">
+      <h4 id="functor-example-2">5.2 Functor Example 2：Graph Functor</h4>
+      <p>给定一个函数 <math><mi>f</mi><mo>:</mo><mi>X</mi><mo>→</mo><mi>Y</mi></math>，可以定义它的 graph：</p>
+      <div class="equation">
+        <math display="block"><mrow><mi mathvariant="normal">Gr</mi><mo stretchy="false">(</mo><mi>f</mi><mo stretchy="false">)</mo><mo>=</mo><mo>{</mo><mo stretchy="false">(</mo><mi>x</mi><mo>,</mo><mi>y</mi><mo stretchy="false">)</mo><mo>∈</mo><mi>X</mi><mo>×</mo><mi>Y</mi><mo>∣</mo><mi>f</mi><mo stretchy="false">(</mo><mi>x</mi><mo stretchy="false">)</mo><mo>=</mo><mi>y</mi><mo>}</mo></mrow></math>
+      </div>
+      <p>一个 function 可以看成一个特殊的 relation。这就把 Set 里的 morphism 送到了 Rel 里，给出一个 functor：</p>
+      <div class="equation">
+        <math display="block"><mrow><mi mathvariant="normal">Gr</mi><mo>:</mo><mi>𝐒𝐞𝐭</mi><mo>→</mo><mi>𝐑𝐞𝐥</mi></mrow></math>
+      </div>
+      <p>在 objects 上保留原来的 set；在 morphisms 上，把函数送到它的 graph：</p>
+      <div class="equation">
+        <math display="block"><mrow><mi mathvariant="normal">Gr</mi><mo stretchy="false">(</mo><mi>X</mi><mo stretchy="false">)</mo><mo>=</mo><mi>X</mi><mo>,</mo><mspace width="1em"/><mi>f</mi><mo>↦</mo><mi mathvariant="normal">Gr</mi><mo stretchy="false">(</mo><mi>f</mi><mo stretchy="false">)</mo></mrow></math>
+      </div>
+      <p>Identity function 的 graph 正好是 identity relation；先复合函数再取 graph，也等于先取 graph 再做 relation composition：</p>
+      <div class="equation">
+        <math display="block"><mrow><mi mathvariant="normal">Gr</mi><mo stretchy="false">(</mo><msub><mi mathvariant="normal">id</mi><mi>X</mi></msub><mo stretchy="false">)</mo><mo>=</mo><mo>{</mo><mo stretchy="false">(</mo><mi>x</mi><mo>,</mo><mi>x</mi><mo stretchy="false">)</mo><mo>∣</mo><mi>x</mi><mo>∈</mo><mi>X</mi><mo>}</mo></mrow></math>
+      </div>
+      <div class="equation">
+        <math display="block"><mrow><mi mathvariant="normal">Gr</mi><mo stretchy="false">(</mo><mi>g</mi><mo>∘</mo><mi>f</mi><mo stretchy="false">)</mo><mo>=</mo><mi mathvariant="normal">Gr</mi><mo stretchy="false">(</mo><mi>g</mi><mo stretchy="false">)</mo><mo>∘</mo><mi mathvariant="normal">Gr</mi><mo stretchy="false">(</mo><mi>f</mi><mo stretchy="false">)</mo></mrow></math>
+      </div>
+      <p>所以 identity 和 composition 都被 preserve，Gr 确实是一个 functor。</p>
+    </section>
+
+    <section class="post-section">
+      <h3 id="lemma-2-9">6. Lemma 2.9：给 Set 加一个 base point</h3>
+      <p>前面把 err 看成了 base point。现在再看“给一个 set 加一个新的 base point”这件事情本身。</p>
+      <p>存在一个 functor：</p>
+      <div class="equation">
+        <math display="block"><mrow><mi>E</mi><mo>:</mo><mi>𝐒𝐞𝐭</mi><mo>→</mo><msub><mi>𝐒𝐞𝐭</mi><mo>•</mo></msub></mrow></math>
+      </div>
+      <p>对每个 set <math><mi>X</mi></math>，有一个 map：</p>
+      <div class="equation">
+        <math display="block"><mrow><msub><mi>i</mi><mi>X</mi></msub><mo>:</mo><mi>X</mi><mo>→</mo><mi>U</mi><mo stretchy="false">(</mo><mi>E</mi><mi>X</mi><mo stretchy="false">)</mo></mrow></math>
+      </div>
+      <p>这里 <math><mi>U</mi></math> 就是前面的 forgetful functor。对于任意 based set <math><mo stretchy="false">(</mo><mi>Y</mi><mo>,</mo><msub><mi>y</mi><mn>0</mn></msub><mo stretchy="false">)</mo></math> 和普通 map：</p>
+      <div class="equation">
+        <math display="block"><mrow><mi>f</mi><mo>:</mo><mi>X</mi><mo>→</mo><mi>U</mi><mo stretchy="false">(</mo><mi>Y</mi><mo>,</mo><msub><mi>y</mi><mn>0</mn></msub><mo stretchy="false">)</mo></mrow></math>
+      </div>
+      <p>存在唯一一个 based map：</p>
+      <div class="equation">
+        <math display="block"><mrow><mover><mi>f</mi><mo>¯</mo></mover><mo>:</mo><mi>E</mi><mi>X</mi><mo>→</mo><mo stretchy="false">(</mo><mi>Y</mi><mo>,</mo><msub><mi>y</mi><mn>0</mn></msub><mo stretchy="false">)</mo></mrow></math>
+      </div>
+      <p>使得：</p>
+      <div class="equation">
+        <math display="block"><mrow><mi>U</mi><mo stretchy="false">(</mo><mover><mi>f</mi><mo>¯</mo></mover><mo stretchy="false">)</mo><mo>∘</mo><msub><mi>i</mi><mi>X</mi></msub><mo>=</mo><mi>f</mi></mrow></math>
+      </div>
+      <figure class="commutative-diagram lemma-diagram">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 200" role="img" aria-labelledby="extension-title extension-desc">
+          <title id="extension-title">普通 map 的唯一 based extension</title>
+          <desc id="extension-desc">X 经 inclusion i_X 向上映入 U(EX)，再经 U(f̄) 到 U(Y, y₀)，等于 X 直接经 f 到 U(Y, y₀)。虚线表示由 f 唯一确定的 extension。</desc>
+          <defs>
+            <marker id="extension-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+              <path d="M 1 1 L 9 5 L 1 9" fill="none" stroke="currentColor" stroke-width="1.2" />
+            </marker>
+          </defs>
+          <g fill="none" stroke="currentColor" stroke-width="1.2" marker-end="url(#extension-arrow)">
+            <path d="M 66 151 V 67" />
+            <path d="M 116 47 H 237" stroke-dasharray="4 4" />
+            <path d="M 81 158 L 248 67" />
+          </g>
+          <text x="66" y="54">U(EX)</text>
+          <text x="292" y="54">U(Y, y<tspan baseline-shift="sub" font-size="14">0</tspan>)</text>
+          <text x="66" y="179">X</text>
+          <text class="arrow-label" x="43" y="115">i<tspan baseline-shift="sub" font-size="12">X</tspan></text>
+          <text class="arrow-label" x="177" y="28">U(f̄)</text>
+          <text class="arrow-label" x="177" y="129">f</text>
+        </svg>
+      </figure>
+      <p>虚线表示这条 map 不是原本就有的，而是为了让 diagram commute，由 <math><mi>f</mi></math> 和 base point structure 唯一补出来的；这个补出来的 <math><mover><mi>f</mi><mo>¯</mo></mover></math> 就叫 unique extension。</p>
+      <p>也就是说，原来的普通 map <math><mi>f</mi><mo>:</mo><mi>X</mi><mo>→</mo><mi>U</mi><mo stretchy="false">(</mo><mi>Y</mi><mo>,</mo><msub><mi>y</mi><mn>0</mn></msub><mo stretchy="false">)</mo></math>，可以唯一地延拓成 based map <math><mover><mi>f</mi><mo>¯</mo></mover><mo>:</mo><mi>E</mi><mi>X</mi><mo>→</mo><mo stretchy="false">(</mo><mi>Y</mi><mo>,</mo><msub><mi>y</mi><mn>0</mn></msub><mo stretchy="false">)</mo></math>；lemma 保证它存在且唯一。</p>
+    </section>
+
+    <section class="post-section">
+      <h3 id="lemma-2-9-proof">7. Lemma 2.9 的证明（通俗版）</h3>
+
+      <h4 id="define-ex">Step 1：定义 EX</h4>
+      <div class="equation">
+        <math display="block"><mrow><mi>E</mi><mi>X</mi><mo>=</mo><mo stretchy="false">(</mo><mo>{</mo><mn>0</mn><mo>}</mo><mo>∪</mo><mo>{</mo><mo stretchy="false">(</mo><mn>1</mn><mo>,</mo><mi>x</mi><mo stretchy="false">)</mo><mo>∣</mo><mi>x</mi><mo>∈</mo><mi>X</mi><mo>}</mo><mo>,</mo><mn>0</mn><mo stretchy="false">)</mo></mrow></math>
+      </div>
+      <p>不能直接写 <math><mi>X</mi><mo>∪</mo><mo>{</mo><mn>0</mn><mo>}</mo></math>，因为 0 可能已经在 <math><mi>X</mi></math> 里。所以把原来的 <math><mi>x</mi></math> 包装成 <math><mo stretchy="false">(</mo><mn>1</mn><mo>,</mo><mi>x</mi><mo stretchy="false">)</mo></math>，再额外加入新的 base point 0。</p>
+
+      <h4 id="define-e-on-morphisms">Step 2：定义 E 在 morphisms 上的行为</h4>
+      <p>如果 <math><mi>f</mi><mo>:</mo><mi>X</mi><mo>→</mo><mi>Y</mi></math>，定义：</p>
+      <div class="equation">
+        <math display="block"><mrow><mo stretchy="false">(</mo><mi>E</mi><mi>f</mi><mo stretchy="false">)</mo><mo stretchy="false">(</mo><mn>1</mn><mo>,</mo><mi>x</mi><mo stretchy="false">)</mo><mo>=</mo><mo stretchy="false">(</mo><mn>1</mn><mo>,</mo><mi>f</mi><mo stretchy="false">(</mo><mi>x</mi><mo stretchy="false">)</mo><mo stretchy="false">)</mo></mrow></math>
+      </div>
+      <div class="equation">
+        <math display="block"><mrow><mo stretchy="false">(</mo><mi>E</mi><mi>f</mi><mo stretchy="false">)</mo><mo stretchy="false">(</mo><mn>0</mn><mo stretchy="false">)</mo><mo>=</mo><mn>0</mn></mrow></math>
+      </div>
+      <p>普通元素照着 <math><mi>f</mi></math> 走，base point 仍然送到 base point。</p>
+
+      <h4 id="e-is-a-functor">Step 3：说明 E 是 functor</h4>
+      <p>Identity 把 <math><mo stretchy="false">(</mo><mn>1</mn><mo>,</mo><mi>x</mi><mo stretchy="false">)</mo></math> 和 0 都送回自身，所以：</p>
+      <div class="equation">
+        <math display="block"><mrow><mi>E</mi><mo stretchy="false">(</mo><msub><mi mathvariant="normal">id</mi><mi>X</mi></msub><mo stretchy="false">)</mo><mo>=</mo><msub><mi mathvariant="normal">id</mi><mrow><mi>E</mi><mi>X</mi></mrow></msub></mrow></math>
+      </div>
+      <p>对于可组合的 <math><mi>f</mi></math>、<math><mi>g</mi></math>，两边都把 <math><mo stretchy="false">(</mo><mn>1</mn><mo>,</mo><mi>x</mi><mo stretchy="false">)</mo></math> 送到 <math><mo stretchy="false">(</mo><mn>1</mn><mo>,</mo><mi>g</mi><mo stretchy="false">(</mo><mi>f</mi><mo stretchy="false">(</mo><mi>x</mi><mo stretchy="false">)</mo><mo stretchy="false">)</mo><mo stretchy="false">)</mo></math>，把 0 送到 0，所以：</p>
+      <div class="equation">
+        <math display="block"><mrow><mi>E</mi><mo stretchy="false">(</mo><mi>g</mi><mo>∘</mo><mi>f</mi><mo stretchy="false">)</mo><mo>=</mo><mi>E</mi><mo stretchy="false">(</mo><mi>g</mi><mo stretchy="false">)</mo><mo>∘</mo><mi>E</mi><mo stretchy="false">(</mo><mi>f</mi><mo stretchy="false">)</mo></mrow></math>
+      </div>
+
+      <h4 id="define-inclusion">Step 4：定义 inclusion</h4>
+      <div class="equation">
+        <math display="block"><mrow><msub><mi>i</mi><mi>X</mi></msub><mo stretchy="false">(</mo><mi>x</mi><mo stretchy="false">)</mo><mo>=</mo><mo stretchy="false">(</mo><mn>1</mn><mo>,</mo><mi>x</mi><mo stretchy="false">)</mo></mrow></math>
+      </div>
+      <p>这样把 <math><mi>X</mi></math> 嵌入 <math><mi>E</mi><mi>X</mi></math>，并与新加的 base point 区分开。</p>
+
+      <h4 id="define-extension">Step 5：定义 extension</h4>
+      <p>对于 <math><mi>f</mi><mo>:</mo><mi>X</mi><mo>→</mo><mi>U</mi><mo stretchy="false">(</mo><mi>Y</mi><mo>,</mo><msub><mi>y</mi><mn>0</mn></msub><mo stretchy="false">)</mo></math>，定义：</p>
+      <div class="equation">
+        <math display="block"><mrow><mover><mi>f</mi><mo>¯</mo></mover><mo stretchy="false">(</mo><mn>1</mn><mo>,</mo><mi>x</mi><mo stretchy="false">)</mo><mo>=</mo><mi>f</mi><mo stretchy="false">(</mo><mi>x</mi><mo stretchy="false">)</mo></mrow></math>
+      </div>
+      <div class="equation">
+        <math display="block"><mrow><mover><mi>f</mi><mo>¯</mo></mover><mo stretchy="false">(</mo><mn>0</mn><mo stretchy="false">)</mo><mo>=</mo><msub><mi>y</mi><mn>0</mn></msub></mrow></math>
+      </div>
+      <p>新加的 base point 被送到 <math><msub><mi>y</mi><mn>0</mn></msub></math>，所以 <math><mover><mi>f</mi><mo>¯</mo></mover></math> 是 based map。</p>
+
+      <h4 id="extension-commutes">Step 6：说明 diagram commute</h4>
+      <p>对任意 <math><mi>x</mi><mo>∈</mo><mi>X</mi></math>：</p>
+      <div class="equation">
+        <math display="block"><mrow><mi>U</mi><mo stretchy="false">(</mo><mover><mi>f</mi><mo>¯</mo></mover><mo stretchy="false">)</mo><mo stretchy="false">(</mo><msub><mi>i</mi><mi>X</mi></msub><mo stretchy="false">(</mo><mi>x</mi><mo stretchy="false">)</mo><mo stretchy="false">)</mo><mo>=</mo><mover><mi>f</mi><mo>¯</mo></mover><mo stretchy="false">(</mo><mn>1</mn><mo>,</mo><mi>x</mi><mo stretchy="false">)</mo><mo>=</mo><mi>f</mi><mo stretchy="false">(</mo><mi>x</mi><mo stretchy="false">)</mo></mrow></math>
+      </div>
+      <p>所以：</p>
+      <div class="equation">
+        <math display="block"><mrow><mi>U</mi><mo stretchy="false">(</mo><mover><mi>f</mi><mo>¯</mo></mover><mo stretchy="false">)</mo><mo>∘</mo><msub><mi>i</mi><mi>X</mi></msub><mo>=</mo><mi>f</mi></mrow></math>
+      </div>
+
+      <h4 id="extension-is-unique">Step 7：说明唯一性</h4>
+      <p>如果还有另一个 based map：</p>
+      <div class="equation">
+        <math display="block"><mrow><mi>g</mi><mo>:</mo><mi>E</mi><mi>X</mi><mo>→</mo><mo stretchy="false">(</mo><mi>Y</mi><mo>,</mo><msub><mi>y</mi><mn>0</mn></msub><mo stretchy="false">)</mo></mrow></math>
+      </div>
+      <p>也满足 <math><mi>U</mi><mo stretchy="false">(</mo><mi>g</mi><mo stretchy="false">)</mo><mo>∘</mo><msub><mi>i</mi><mi>X</mi></msub><mo>=</mo><mi>f</mi></math>，那么：</p>
+      <div class="equation">
+        <math display="block"><mrow><mi>g</mi><mo stretchy="false">(</mo><mn>1</mn><mo>,</mo><mi>x</mi><mo stretchy="false">)</mo><mo>=</mo><mi>f</mi><mo stretchy="false">(</mo><mi>x</mi><mo stretchy="false">)</mo></mrow></math>
+      </div>
+      <p>而且因为 <math><mi>g</mi></math> 是 based map：</p>
+      <div class="equation">
+        <math display="block"><mrow><mi>g</mi><mo stretchy="false">(</mo><mn>0</mn><mo stretchy="false">)</mo><mo>=</mo><msub><mi>y</mi><mn>0</mn></msub></mrow></math>
+      </div>
+      <p>所以 <math><mi>g</mi></math> 在 <math><mi>E</mi><mi>X</mi></math> 的所有元素上都和 <math><mover><mi>f</mi><mo>¯</mo></mover></math> 相同：</p>
+      <div class="equation">
+        <math display="block"><mrow><mi>g</mi><mo>=</mo><mover><mi>f</mi><mo>¯</mo></mover></mrow></math>
+      </div>
+      <p>因此 extension 是 unique 的。</p>
+      <h4 id="base-point-conclusion">Step 8：回头看前面的 err</h4>
+      <p>回到前面的例子，取 <math><mi>X</mi><mo>=</mo><msub><mi>ℚ</mi><mrow><mo>≥</mo><mn>0</mn></mrow></msub></math>，把包装后的 <math><mo stretchy="false">(</mo><mn>1</mn><mo>,</mo><mi>x</mi><mo stretchy="false">)</mo></math> 记回 <math><mi>x</mi></math>，把新加的 base point 记作 err，就得到 <math><mo stretchy="false">(</mo><mi>D</mi><mo>,</mo><mi mathvariant="normal">err</mi><mo stretchy="false">)</mo></math>。</p>
+      <p>所以给一个 set 添加一个新的 base point，并不是临时处理 err 的小技巧，而是一个满足 unique mapping property 的统一 construction。前面的 <math><mo stretchy="false">(</mo><mi>D</mi><mo>,</mo><mi mathvariant="normal">err</mi><mo stretchy="false">)</mo></math> 只是这个 construction 的一个具体例子。</p>
+    </section>
+
+    <section class="post-section">
+      <h3 id="context-substitution">8. Context 和 Substitution</h3>
+      <p>前面 Category、Functor 的工具已经有了，Lemma 2.9 也准备好了处理 error / base point 的 extension。但放回 program semantics 里面，还缺一个具体答案：program 本身怎么 composition？</p>
+      <p>如果 semantics 要成为一个 functor，syntax 这一边首先得有一个 category。连 program 的 composition 都还没有 formalise，就还谈不上让 semantics 去 preserve 它。</p>
+      <p>对于 Arith，这个 composition 就是把一个 expression 填进另一个 expression 预留的位置，也就是 substitution。所以先引入 context 和 hole，再证明 substitution 满足 associativity、hole 充当 identity，才能得到后面的 classifying category <math><mrow><msub><mi>𝒞</mi><mrow><mi mathvariant="normal">Arith</mi></mrow></msub></mrow></math>。</p>
+      <p>Definition 3.1 给出 Arith 的 context grammar：</p>
+      <div class="equation">
+        <math display="block"><mrow><mi>c</mi><mo>::=</mo><mo>−</mo><mo>|</mo><mi>c</mi><mo>□</mo><mi>e</mi><mo>|</mo><mi>e</mi><mo>□</mo><mi>c</mi><mo>|</mo><mi>c</mi><mo>□</mo><mi>c</mi></mrow></math>
+      </div>
+      <p>其中 <math><mrow><mo>□</mo><mo>∈</mo><mo stretchy="false">{</mo><mo>⊕</mo><mo>,</mo><mo>⊗</mo><mo>,</mo><mo>⊘</mo><mo stretchy="false">}</mo></mrow></math>，<math><mrow><mo>−</mo></mrow></math> 叫作 hole，e 是普通 Arith expression。</p>
+      <p>Context 就是带 hole 的 expression，例如 <math><mrow><mo>−</mo><mo>⊕</mo><mn>5</mn></mrow></math>、<math><mrow><mn>3</mn><mo>⊘</mo><mo>−</mo></mrow></math>。这里真正重要的是：可以把另一个 context 或 expression 填进去；有多个 holes 时，就填入每一个。</p>
+      <p><math><mrow><mi>c′</mi><mo stretchy="false">[</mo><mi>c</mi><mo stretchy="false">]</mo></mrow></math> 表示把 c substitution 到 c′ 的 holes 里，递归定义是：</p>
+      <div class="equation">
+        <math display="block"><mrow><mo>−</mo><mo stretchy="false">[</mo><mi>c</mi><mo stretchy="false">]</mo><mo>=</mo><mi>c</mi></mrow></math>
+      </div>
+      <div class="equation">
+        <math display="block"><mrow><mo stretchy="false">(</mo><msub><mi>c</mi><mrow><mn>1</mn></mrow></msub><mo>□</mo><mi>e</mi><mo stretchy="false">)</mo><mo stretchy="false">[</mo><mi>c</mi><mo stretchy="false">]</mo><mo>=</mo><msub><mi>c</mi><mrow><mn>1</mn></mrow></msub><mo stretchy="false">[</mo><mi>c</mi><mo stretchy="false">]</mo><mo>□</mo><mi>e</mi></mrow></math>
+      </div>
+      <div class="equation">
+        <math display="block"><mrow><mo stretchy="false">(</mo><mi>e</mi><mo>□</mo><msub><mi>c</mi><mrow><mn>2</mn></mrow></msub><mo stretchy="false">)</mo><mo stretchy="false">[</mo><mi>c</mi><mo stretchy="false">]</mo><mo>=</mo><mi>e</mi><mo>□</mo><msub><mi>c</mi><mrow><mn>2</mn></mrow></msub><mo stretchy="false">[</mo><mi>c</mi><mo stretchy="false">]</mo></mrow></math>
+      </div>
+      <div class="equation">
+        <math display="block"><mrow><mo stretchy="false">(</mo><msub><mi>c</mi><mrow><mn>1</mn></mrow></msub><mo>□</mo><msub><mi>c</mi><mrow><mn>2</mn></mrow></msub><mo stretchy="false">)</mo><mo stretchy="false">[</mo><mi>c</mi><mo stretchy="false">]</mo><mo>=</mo><msub><mi>c</mi><mrow><mn>1</mn></mrow></msub><mo stretchy="false">[</mo><mi>c</mi><mo stretchy="false">]</mo><mo>□</mo><msub><mi>c</mi><mrow><mn>2</mn></mrow></msub><mo stretchy="false">[</mo><mi>c</mi><mo stretchy="false">]</mo></mrow></math>
+      </div>
+      <p>填入普通 expression e 时，写作 <math><mrow><mi>c</mi><mo stretchy="false">[</mo><mi>e</mi><mo stretchy="false">]</mo></mrow></math>。Substitution 就是 program composition 在 syntax 层面的具体操作。</p>
+    </section>
+
+    <section class="post-section">
+      <h4 id="example-3-2">8.1 Example 3.2</h4>
+      <div class="equation">
+        <math display="block"><mrow><msub><mi>c</mi><mrow><mn>1</mn></mrow></msub><mo>=</mo><mo>−</mo><mo>⊕</mo><mn>5</mn></mrow></math>
+      </div>
+      <div class="equation">
+        <math display="block"><mrow><msub><mi>c</mi><mrow><mn>2</mn></mrow></msub><mo>=</mo><mn>3</mn><mo>⊘</mo><mo>−</mo></mrow></math>
+      </div>
+      <p>那么：</p>
+      <div class="equation">
+        <math display="block"><mrow><msub><mi>c</mi><mrow><mn>1</mn></mrow></msub><mo stretchy="false">[</mo><msub><mi>c</mi><mrow><mn>2</mn></mrow></msub><mo stretchy="false">]</mo><mo stretchy="false">[</mo><mn>6</mn><mo stretchy="false">]</mo><mo>=</mo><mo stretchy="false">(</mo><mo stretchy="false">(</mo><mn>3</mn><mo>⊘</mo><mo>−</mo><mo stretchy="false">)</mo><mo>⊕</mo><mn>5</mn><mo stretchy="false">)</mo><mo stretchy="false">[</mo><mn>6</mn><mo stretchy="false">]</mo></mrow></math>
+      </div>
+      <div class="equation">
+        <math display="block"><mrow><msub><mi>c</mi><mrow><mn>1</mn></mrow></msub><mo stretchy="false">[</mo><msub><mi>c</mi><mrow><mn>2</mn></mrow></msub><mo stretchy="false">]</mo><mo stretchy="false">[</mo><mn>6</mn><mo stretchy="false">]</mo><mo>=</mo><mo stretchy="false">(</mo><mn>3</mn><mo>⊘</mo><mn>6</mn><mo stretchy="false">)</mo><mo>⊕</mo><mn>5</mn></mrow></math>
+      </div>
+      <p>所以一个 context 可以先塞进另一个 context，最后再把 expression 填进去。</p>
+    </section>
+
+    <section class="post-section">
+      <h4 id="lemma-3-3">8.2 Lemma 3.3</h4>
+      <p>定义 substitution 还不够。要把它当作 category composition，就必须检查对应的 laws。对于所有 contexts c₁、c₂、c₃：</p>
+      <div class="equation">
+        <math display="block"><mrow><msub><mi>c</mi><mrow><mn>1</mn></mrow></msub><mo stretchy="false">[</mo><msub><mi>c</mi><mrow><mn>2</mn></mrow></msub><mo stretchy="false">[</mo><msub><mi>c</mi><mrow><mn>3</mn></mrow></msub><mo stretchy="false">]</mo><mo stretchy="false">]</mo><mo>=</mo><msub><mi>c</mi><mrow><mn>1</mn></mrow></msub><mo stretchy="false">[</mo><msub><mi>c</mi><mrow><mn>2</mn></mrow></msub><mo stretchy="false">]</mo><mo stretchy="false">[</mo><msub><mi>c</mi><mrow><mn>3</mn></mrow></msub><mo stretchy="false">]</mo></mrow></math>
+      </div>
+      <div class="equation">
+        <math display="block"><mrow><msub><mi>c</mi><mrow><mn>1</mn></mrow></msub><mo stretchy="false">[</mo><mo>−</mo><mo stretchy="false">]</mo><mo>=</mo><msub><mi>c</mi><mrow><mn>1</mn></mrow></msub><mo>=</mo><mo>−</mo><mo stretchy="false">[</mo><msub><mi>c</mi><mrow><mn>1</mn></mrow></msub><mo stretchy="false">]</mo></mrow></math>
+      </div>
+      <p>第一条是 associativity；第二条说 hole 不改变 context，因此可以扮演 identity。前面 category 要求的两种 structure，在这里分别由 substitution 和 hole 提供。</p>
+      <p>Proof idea：Associativity 对 c₁ 做 structural induction。Base case 是 c₁ = −： <math><mrow><mo>−</mo><mo stretchy="false">[</mo><msub><mi>c</mi><mrow><mn>2</mn></mrow></msub><mo stretchy="false">[</mo><msub><mi>c</mi><mrow><mn>3</mn></mrow></msub><mo stretchy="false">]</mo><mo stretchy="false">]</mo><mo>=</mo><msub><mi>c</mi><mrow><mn>2</mn></mrow></msub><mo stretchy="false">[</mo><msub><mi>c</mi><mrow><mn>3</mn></mrow></msub><mo stretchy="false">]</mo><mo>=</mo><mo>−</mo><mo stretchy="false">[</mo><msub><mi>c</mi><mrow><mn>2</mn></mrow></msub><mo stretchy="false">]</mo><mo stretchy="false">[</mo><msub><mi>c</mi><mrow><mn>3</mn></mrow></msub><mo stretchy="false">]</mo></mrow></math> Induction step 分为 <math><mrow><msub><mi>c</mi><mrow><mn>1</mn></mrow></msub><mo>□</mo><mi>e</mi></mrow></math>、<math><mrow><mi>e</mi><mo>□</mo><msub><mi>c</mi><mrow><mn>1</mn></mrow></msub></mrow></math>、<math><mrow><msub><mi>c</mi><mrow><mn>1</mn></mrow></msub><mo>□</mo><mi>c₁′</mi></mrow></math> 三类。每一类展开 substitution definition，再对子 context 用 induction hypothesis。 Identity law 同样由 structural induction 得到。这个 proof 保证 substitution 确实满足 category composition 所需的 laws。</p>
+    </section>
+
+    <section class="post-section">
+      <h3 id="classifying-category">9. Classifying Category</h3>
+      <p>由 Lemma 3.3，可以构造 Arith 的 classifying category <math><mrow><msub><mi>𝒞</mi><mrow><mi mathvariant="normal">Arith</mi></mrow></msub></mrow></math>。它只有一个 object <math><mrow><mo>∗</mo></mrow></math>：</p>
+      <div class="equation">
+        <math display="block"><mrow><msub><mi>𝒞</mi><mrow><mi mathvariant="normal">Arith</mi></mrow></msub><mo stretchy="false">(</mo><mo>∗</mo><mo>,</mo><mo>∗</mo><mo stretchy="false">)</mo><mo>=</mo><mo stretchy="false">{</mo><mi>c</mi><mo>∣</mo><mtext>c is a context</mtext><mo stretchy="false">}</mo></mrow></math>
+      </div>
+      <p>Identity 和 composition 定义为：</p>
+      <div class="equation">
+        <math display="block"><mrow><msub><mi mathvariant="normal">id</mi><mrow><mo>∗</mo></mrow></msub><mo>=</mo><mo>−</mo></mrow></math>
+      </div>
+      <div class="equation">
+        <math display="block"><mrow><msub><mi>c</mi><mrow><mn>2</mn></mrow></msub><mo>∘</mo><msub><mi>c</mi><mrow><mn>1</mn></mrow></msub><mo>=</mo><msub><mi>c</mi><mrow><mn>2</mn></mrow></msub><mo stretchy="false">[</mo><msub><mi>c</mi><mrow><mn>1</mn></mrow></msub><mo stretchy="false">]</mo></mrow></math>
+      </div>
+      <p>当前 Arith 是 untyped 的，所以所有 contexts 都作为 <math><mrow><mi>c</mi><mo>:</mo><mo>∗</mo><mo>→</mo><mo>∗</mo></mrow></math>。Objects 是 <math><mrow><mo>∗</mo></mrow></math>，morphisms 是 contexts，identity 是 hole，composition 是 substitution。</p>
+            <figure class="commutative-diagram lemma-diagram">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 240" role="img" aria-labelledby="arith-category-title arith-category-desc">
+          <title id="arith-category-title">Arith 的 classifying category</title>
+          <desc id="arith-category-desc">唯一的 object 是星号。所有 contexts 都是从它到自身的 morphisms，包括 hole、hole 加五、三除以 hole。</desc>
+          <defs><marker id="arith-loop-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M 1 1 L 9 5 L 1 9" fill="none" stroke="currentColor" stroke-width="1.2" /></marker></defs>
+          <g fill="none" stroke="currentColor" stroke-width="1.2" marker-end="url(#arith-loop-arrow)">
+            <path d="M 172 115 C 95 15 265 15 188 115" />
+            <path d="M 164 131 C 24 48 24 220 164 147" />
+            <path d="M 196 147 C 336 220 336 48 196 131" />
+          </g>
+          <text x="180" y="141">∗</text>
+          <text class="arrow-label" x="180" y="30">−</text>
+          <text class="arrow-label" x="61" y="92">− ⊕ 5</text>
+          <text class="arrow-label" x="299" y="92">3 ⊘ −</text>
+          <text x="180" y="216">⋮</text>
+        </svg>
+      </figure>
+      <p>于是 Arith 的 syntax / program composition 本身被组织成了一个 category。</p>
+    </section>
+
+    <section class="post-section">
+      <h3 id="functorial-semantics">10. Functorial Semantics</h3>
+    </section>
+
+    <section class="post-section">
+      <h4 id="theorem-3-4">10.1 Theorem 3.4</h4>
+      <p>回到前面的 functor：denotational semantics of Arith 给出</p>
+      <div class="equation">
+        <math display="block"><mrow><mi>S</mi><mo>:</mo><msub><mi>𝒞</mi><mrow><mi mathvariant="normal">Arith</mi></mrow></msub><mo>→</mo><msub><mi>𝐒𝐞𝐭</mi><mrow><mo>•</mo></mrow></msub></mrow></math>
+      </div>
+      <div class="equation">
+        <math display="block"><mrow><mi>S</mi><mo stretchy="false">(</mo><mo>∗</mo><mo stretchy="false">)</mo><mo>=</mo><mo stretchy="false">(</mo><mi>D</mi><mo>,</mo><mi mathvariant="normal">err</mi><mo stretchy="false">)</mo></mrow></math>
+      </div>
+      <p>D 就是前面的 semantic domain。对于一个 context <math><mrow><mi>c</mi><mo>:</mo><mo>∗</mo><mo>→</mo><mo>∗</mo></mrow></math>，我们需要一个 based map：</p>
+      <div class="equation">
+        <math display="block"><mrow><mi>S</mi><mi>c</mi><mo>:</mo><mo stretchy="false">(</mo><mi>D</mi><mo>,</mo><mi mathvariant="normal">err</mi><mo stretchy="false">)</mo><mo>→</mo><mo stretchy="false">(</mo><mi>D</mi><mo>,</mo><mi mathvariant="normal">err</mi><mo stretchy="false">)</mo></mrow></math>
+      </div>
+      <p>Sc 从哪里来？对普通输入 <math><mrow><mi>a</mi><mo>∈</mo><msub><mi>ℚ</mi><mrow><mo>≥</mo><mn>0</mn></mrow></msub></mrow></math>，先定义 <math><mrow><mi>f</mi><mo>:</mo><msub><mi>ℚ</mi><mrow><mo>≥</mo><mn>0</mn></mrow></msub><mo>→</mo><mi>D</mi></mrow></math>：</p>
+      <div class="equation">
+        <math display="block"><mrow><mi>f</mi><mo stretchy="false">(</mo><mi>a</mi><mo stretchy="false">)</mo><mo>=</mo><mi>ℰ</mi><mo>⟦</mo><mi>c</mi><mo stretchy="false">[</mo><mi>a</mi><mo stretchy="false">]</mo><mo>⟧</mo></mrow></math>
+      </div>
+      <p>也就是把 a 填进 c，再取 denotational semantics。但 Sc 要定义在整个 D 上，因此用 Lemma 2.9 把 f 唯一 extend 成 based map：</p>
+      <div class="equation">
+        <math display="block"><mrow><mi>S</mi><mi>c</mi><mo>:</mo><mi>D</mi><mo>→</mo><mi>D</mi></mrow></math>
+      </div>
+      <div class="equation">
+        <math display="block"><mrow><mo stretchy="false">(</mo><mi>S</mi><mi>c</mi><mo stretchy="false">)</mo><mo stretchy="false">(</mo><mi mathvariant="normal">err</mi><mo stretchy="false">)</mo><mo>=</mo><mi mathvariant="normal">err</mi></mrow></math>
+      </div>
+            <figure class="commutative-diagram lemma-diagram">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 220" role="img" aria-labelledby="semantics-lift-title semantics-lift-desc">
+          <title id="semantics-lift-title">将 f 唯一延拓成 based map Sc</title>
+          <desc id="semantics-lift-desc">非负有理数经 inclusion i 嵌入 D。f 的唯一 based extension Sc 的底层函数 U(Sc) 使三角图交换，且将 err 送到 err。</desc>
+          <defs><marker id="semantics-lift-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M 1 1 L 9 5 L 1 9" fill="none" stroke="currentColor" stroke-width="1.2" /></marker></defs>
+          <g fill="none" stroke="currentColor" stroke-width="1.2" marker-end="url(#semantics-lift-arrow)">
+            <path d="M 106 46 H 265" />
+            <path d="M 76 66 V 163" />
+            <path d="M 94 168 L 266 64" stroke-dasharray="4 4" />
+          </g>
+          <text x="76" y="53">ℚ<tspan baseline-shift="sub" font-size="13">≥0</tspan></text>
+          <text x="280" y="53">D</text><text x="76" y="190">D</text>
+          <text class="arrow-label" x="181" y="31">f</text><text class="arrow-label" x="58" y="118">i</text>
+          <text class="arrow-label" x="222" y="132">U(Sc)</text>
+        </svg>
+      </figure>
+      <p>i 是把正常值嵌入 D 的 inclusion。虚线 U(Sc) 是 extension 的底层 map，使两条 path 相同。前面 Lemma 2.9 里“加一个 base point，再把普通 map 唯一 extend 成 based map”的结构，这里真的用上了。</p>
+      <p>Identity law 是：</p>
+      <div class="equation">
+        <math display="block"><mrow><mi>S</mi><mo stretchy="false">(</mo><msub><mi mathvariant="normal">id</mi><mrow><mo>∗</mo></mrow></msub><mo stretchy="false">)</mo><mo>=</mo><msub><mi mathvariant="normal">id</mi><mrow><mi>S</mi><mo stretchy="false">(</mo><mo>∗</mo><mo stretchy="false">)</mo></mrow></msub></mrow></math>
+      </div>
+      <p>因为 <math><mrow><msub><mi mathvariant="normal">id</mi><mrow><mo>∗</mo></mrow></msub><mo>=</mo><mo>−</mo></mrow></math>，所以 <math><mrow><mi>S</mi><mo stretchy="false">(</mo><mo>−</mo><mo stretchy="false">)</mo><mo>=</mo><mi mathvariant="normal">id</mi></mrow></math>：hole 什么都不做，semantic map 也什么都不做。</p>
+      <p>更重要的是 composition：</p>
+      <div class="equation">
+        <math display="block"><mrow><mi>S</mi><mo stretchy="false">(</mo><msub><mi>c</mi><mrow><mn>2</mn></mrow></msub><mo>∘</mo><msub><mi>c</mi><mrow><mn>1</mn></mrow></msub><mo stretchy="false">)</mo><mo>=</mo><mi>S</mi><mo stretchy="false">(</mo><msub><mi>c</mi><mrow><mn>2</mn></mrow></msub><mo stretchy="false">)</mo><mo>∘</mo><mi>S</mi><mo stretchy="false">(</mo><msub><mi>c</mi><mrow><mn>1</mn></mrow></msub><mo stretchy="false">)</mo></mrow></math>
+      </div>
+      <p>在 <math><mrow><msub><mi>𝒞</mi><mrow><mi mathvariant="normal">Arith</mi></mrow></msub></mrow></math> 中，composition 就是 substitution，因此：</p>
+      <div class="equation">
+        <math display="block"><mrow><mi>S</mi><mo stretchy="false">(</mo><msub><mi>c</mi><mrow><mn>2</mn></mrow></msub><mo stretchy="false">[</mo><msub><mi>c</mi><mrow><mn>1</mn></mrow></msub><mo stretchy="false">]</mo><mo stretchy="false">)</mo><mo>=</mo><mi>S</mi><mo stretchy="false">(</mo><msub><mi>c</mi><mrow><mn>2</mn></mrow></msub><mo stretchy="false">)</mo><mo>∘</mo><mi>S</mi><mo stretchy="false">(</mo><msub><mi>c</mi><mrow><mn>1</mn></mrow></msub><mo stretchy="false">)</mo></mrow></math>
+      </div>
+      <p>左边先在 syntax 中 substitution，再求整体 semantics；右边先求每个 context 的 semantic map，再 compose 这些 maps。Functor law 要求两种方式相同。</p>
+      <p>也就是说，semantics 不只是给每个 program 一个 meaning，它还要 preserve program 本来的 composition structure。</p>
+      <p>这里只作 illustration。取： <math><mrow><msub><mi>c</mi><mrow><mn>1</mn></mrow></msub><mo>=</mo><mo>−</mo><mo>⊕</mo><mn>5</mn></mrow></math> <math><mrow><msub><mi>c</mi><mrow><mn>2</mn></mrow></msub><mo>=</mo><mn>3</mn><mo>⊗</mo><mo>−</mo></mrow></math> <math><mrow><msub><mi>c</mi><mrow><mn>2</mn></mrow></msub><mo stretchy="false">[</mo><msub><mi>c</mi><mrow><mn>1</mn></mrow></msub><mo stretchy="false">]</mo><mo>=</mo><mn>3</mn><mo>⊗</mo><mo stretchy="false">(</mo><mo>−</mo><mo>⊕</mo><mn>5</mn><mo stretchy="false">)</mo></mrow></math> 输入 2，先 substitution 再求 semantics，得到 <math><mrow><mn>3</mn><mo>×</mo><mo stretchy="false">(</mo><mn>2</mn><mo>+</mo><mn>5</mn><mo stretchy="false">)</mo><mo>=</mo><mn>21</mn></mrow></math>。分开计算则是： <math><mrow><mi>S</mi><mo stretchy="false">(</mo><msub><mi>c</mi><mrow><mn>1</mn></mrow></msub><mo stretchy="false">)</mo><mo stretchy="false">(</mo><mn>2</mn><mo stretchy="false">)</mo><mo>=</mo><mn>7</mn></mrow></math> <math><mrow><mi>S</mi><mo stretchy="false">(</mo><msub><mi>c</mi><mrow><mn>2</mn></mrow></msub><mo stretchy="false">)</mo><mo stretchy="false">(</mo><mn>7</mn><mo stretchy="false">)</mo><mo>=</mo><mn>21</mn></mrow></math> 所以： <math><mrow><mi>S</mi><mo stretchy="false">(</mo><msub><mi>c</mi><mrow><mn>2</mn></mrow></msub><mo stretchy="false">[</mo><msub><mi>c</mi><mrow><mn>1</mn></mrow></msub><mo stretchy="false">]</mo><mo stretchy="false">)</mo><mo stretchy="false">(</mo><mn>2</mn><mo stretchy="false">)</mo><mo>=</mo><mo stretchy="false">(</mo><mi>S</mi><mo stretchy="false">(</mo><msub><mi>c</mi><mrow><mn>2</mn></mrow></msub><mo stretchy="false">)</mo><mo>∘</mo><mi>S</mi><mo stretchy="false">(</mo><msub><mi>c</mi><mrow><mn>1</mn></mrow></msub><mo stretchy="false">)</mo><mo stretchy="false">)</mo><mo stretchy="false">(</mo><mn>2</mn><mo stretchy="false">)</mo></mrow></math></p>
+    </section>
+
+    <section class="post-section">
+      <h4 id="example-3-5">10.2 Example 3.5</h4>
+      <p>Operational semantics 也给出一个 functor：</p>
+      <div class="equation">
+        <math display="block"><mrow><mi>O</mi><mo>:</mo><msub><mi>𝒞</mi><mrow><mi mathvariant="normal">Arith</mi></mrow></msub><mo>→</mo><msub><mi>𝐒𝐞𝐭</mi><mrow><mo>•</mo></mrow></msub></mrow></math>
+      </div>
+      <div class="equation">
+        <math display="block"><mrow><mi>O</mi><mo stretchy="false">(</mo><mo>∗</mo><mo stretchy="false">)</mo><mo>=</mo><mo stretchy="false">(</mo><mi>𝒫</mi><mo stretchy="false">(</mo><msub><mi>ℚ</mi><mrow><mo>≥</mo><mn>0</mn></mrow></msub><mo stretchy="false">)</mo><mo>,</mo><mo>∅</mo><mo stretchy="false">)</mo></mrow></math>
+      </div>
+      <p>这里 𝒫 是 power set。对 context c 和 <math><mrow><mi>U</mi><mo>⊆</mo><msub><mi>ℚ</mi><mrow><mo>≥</mo><mn>0</mn></mrow></msub></mrow></math>，定义：</p>
+      <div class="equation">
+        <math display="block"><mrow><mo stretchy="false">(</mo><mi>O</mi><mi>c</mi><mo stretchy="false">)</mo><mo stretchy="false">(</mo><mi>U</mi><mo stretchy="false">)</mo><mo>=</mo><mo stretchy="false">{</mo><mi>b</mi><mo>∈</mo><msub><mi>ℚ</mi><mrow><mo>≥</mo><mn>0</mn></mrow></msub><mo>∣</mo><mo>∃</mo><mi>a</mi><mo>∈</mo><mi>U</mi><mo>:</mo><mi>c</mi><mo stretchy="false">[</mo><mi>a</mi><mo stretchy="false">]</mo><mo>⇓</mo><mi>b</mi><mo stretchy="false">}</mo></mrow></math>
+      </div>
+      <p>也就是存在某个输入 a ∈ U，使得 c[a] ⇓ b。O 收集通过 operational semantics 能得到的正常结果，而不只取一个 number。</p>
+      <div class="equation">
+        <math display="block"><mrow><mo stretchy="false">(</mo><mi>O</mi><mi>c</mi><mo stretchy="false">)</mo><mo stretchy="false">(</mo><mo>∅</mo><mo stretchy="false">)</mo><mo>=</mo><mo>∅</mo></mrow></math>
+      </div>
+      <p>所以 Oc 是 based map。Hole 对应 identity，context substitution 对应这些 maps 的 composition：</p>
+      <div class="equation">
+        <math display="block"><mrow><mi>O</mi><mo stretchy="false">(</mo><mo>−</mo><mo stretchy="false">)</mo><mo>=</mo><mi mathvariant="normal">id</mi></mrow></math>
+      </div>
+      <div class="equation">
+        <math display="block"><mrow><mi>O</mi><mo stretchy="false">(</mo><msub><mi>c</mi><mrow><mn>2</mn></mrow></msub><mo stretchy="false">[</mo><msub><mi>c</mi><mrow><mn>1</mn></mrow></msub><mo stretchy="false">]</mo><mo stretchy="false">)</mo><mo>=</mo><mi>O</mi><mo stretchy="false">(</mo><msub><mi>c</mi><mrow><mn>2</mn></mrow></msub><mo stretchy="false">)</mo><mo>∘</mo><mi>O</mi><mo stretchy="false">(</mo><msub><mi>c</mi><mrow><mn>1</mn></mrow></msub><mo stretchy="false">)</mo></mrow></math>
+      </div>
+      <p>因此 O 也 preserve identity 和 composition。现在有了两个 semantics functors：它们都解释同一个 syntax，彼此之间怎么正式建立关系？</p>
+    </section>
+
+    <section class="post-section">
+      <h3 id="natural-transformation">11. Natural Transformation</h3>
+      <p>一个 functor 可以看成一种 semantics / model。现在有 <math><mrow><mi>S</mi><mo>,</mo><mi>O</mi><mo>:</mo><msub><mi>𝒞</mi><mrow><mi mathvariant="normal">Arith</mi></mrow></msub><mo>→</mo><msub><mi>𝐒𝐞𝐭</mi><mrow><mo>•</mo></mrow></msub></mrow></math>，要比较的是这两种 semantics。</p>
+      <p>更一般地，<math><mrow><mi>F</mi><mo>,</mo><mi>G</mi><mo>:</mo><mi>𝒞</mi><mo>→</mo><mi>𝒟</mi></mrow></math> 是两个 parallel functors，即 domain 和 codomain 相同。Natural transformation 就是用来比较它们的 structure。</p>
+      <p>Objects 之间有 morphisms；categories 之间有 functors；parallel functors 之间有 natural transformations。</p>
+    </section>
+
+    <section class="post-section">
+      <h4 id="natural-transformation-definition">11.1 Definition 3.6</h4>
+      <p>若 <math><mrow><mi>F</mi><mo>,</mo><mi>G</mi><mo>:</mo><mi>𝒞</mi><mo>→</mo><mi>𝒟</mi></mrow></math>，一个 natural transformation：</p>
+      <div class="equation">
+        <math display="block"><mrow><mi>α</mi><mo>:</mo><mi>F</mi><mo>⇒</mo><mi>G</mi></mrow></math>
+      </div>
+      <p>由每个 object A ∈ 𝒞 对应的 morphism 组成：</p>
+      <div class="equation">
+        <math display="block"><mrow><msub><mi>α</mi><mrow><mi>A</mi></mrow></msub><mo>:</mo><mi>F</mi><mo stretchy="false">(</mo><mi>A</mi><mo stretchy="false">)</mo><mo>→</mo><mi>G</mi><mo stretchy="false">(</mo><mi>A</mi><mo stretchy="false">)</mo></mrow></math>
+      </div>
+      <p>这些 components 必须满足 naturality condition。对任意 <math><mrow><mi>f</mi><mo>:</mo><mi>A</mi><mo>→</mo><mi>B</mi></mrow></math>，下面的 square 要 commute：</p>
+            <figure class="commutative-diagram lemma-diagram">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 210" role="img" aria-labelledby="nt-general-title nt-general-desc">
+          <title id="nt-general-title">Naturality square</title>
+          <desc id="nt-general-desc">F(A) 经 alpha A 到 G(A)，再经 G(f) 到 G(B)，等于先经 F(f) 到 F(B)，再经 alpha B 到 G(B)。</desc>
+          <defs><marker id="nt-general-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M 1 1 L 9 5 L 1 9" fill="none" stroke="currentColor" stroke-width="1.2" /></marker></defs>
+          <g fill="none" stroke="currentColor" stroke-width="1.2" marker-end="url(#nt-general-arrow)">
+            <path d="M 112 46 H 242" /><path d="M 76 65 V 153" />
+            <path d="M 280 65 V 153" /><path d="M 112 170 H 242" />
+          </g>
+          <text x="76" y="53">F(A)</text><text x="280" y="53">G(A)</text>
+          <text x="76" y="177">F(B)</text><text x="280" y="177">G(B)</text>
+          <text class="arrow-label" x="178" y="29">α<tspan baseline-shift="sub" font-size="12">A</tspan></text><text class="arrow-label" x="178" y="198">α<tspan baseline-shift="sub" font-size="12">B</tspan></text>
+          <text class="arrow-label" x="37" y="115">F(f)</text><text class="arrow-label" x="324" y="115">G(f)</text>
+        </svg>
+      </figure>
+      <div class="equation">
+        <math display="block"><mrow><mi>G</mi><mo stretchy="false">(</mo><mi>f</mi><mo stretchy="false">)</mo><mo>∘</mo><msub><mi>α</mi><mrow><mi>A</mi></mrow></msub><mo>=</mo><msub><mi>α</mi><mrow><mi>B</mi></mrow></msub><mo>∘</mo><mi>F</mi><mo stretchy="false">(</mo><mi>f</mi><mo stretchy="false">)</mo></mrow></math>
+      </div>
+      <p>两条 path 相同：先通过 F(f)，再用 α_B；或者先用 α_A 转到 G，再通过 G(f)。每个 object 上单独有一个 map 不够，这些 maps 还必须和所有 morphisms compatible。</p>
+      <p><math><mrow><msub><mi>α</mi><mrow><mi>A</mi></mrow></msub></mrow></math> 对每个 A 单独合法还不够，整个 family <math><mrow><mo stretchy="false">{</mo><msub><mi>α</mi><mrow><mi>A</mi></mrow></msub><mo stretchy="false">}</mo></mrow></math> 必须 uniform / structure-compatible。 这里真正限制的是：不同 object 上的 maps 不能各自随便做选择，而要和原 category 中所有 morphisms 一起 commute。</p>
+      <p>顺手记下 Exercise 3.3 / 3.4 的两个事实。若 <math><mrow><mi>F</mi><mo>:</mo><mi>𝒞</mi><mo>→</mo><mi>𝒟</mi></mrow></math>、<math><mrow><mi>G</mi><mo>:</mo><mi>𝒟</mi><mo>→</mo><mi>ℰ</mi></mrow></math>，就有 functor： <math><mrow><mi>G</mi><mo>∘</mo><mi>F</mi><mo>:</mo><mi>𝒞</mi><mo>→</mo><mi>ℰ</mi></mrow></math> <math><mrow><mo stretchy="false">(</mo><mi>G</mi><mo>∘</mo><mi>F</mi><mo stretchy="false">)</mo><mo stretchy="false">(</mo><mi>X</mi><mo stretchy="false">)</mo><mo>=</mo><mi>G</mi><mo stretchy="false">(</mo><mi>F</mi><mo stretchy="false">(</mo><mi>X</mi><mo stretchy="false">)</mo><mo stretchy="false">)</mo></mrow></math> <math><mrow><mo stretchy="false">(</mo><mi>G</mi><mo>∘</mo><mi>F</mi><mo stretchy="false">)</mo><mo stretchy="false">(</mo><mi>f</mi><mo stretchy="false">)</mo><mo>=</mo><mi>G</mi><mo stretchy="false">(</mo><mi>F</mi><mo stretchy="false">(</mo><mi>f</mi><mo stretchy="false">)</mo><mo stretchy="false">)</mo></mrow></math> 每个 category 𝒞 也有 identity functor <math><mrow><msub><mi mathvariant="normal">Id</mi><mrow><mi>𝒞</mi></mrow></msub><mo>:</mo><mi>𝒞</mi><mo>→</mo><mi>𝒞</mi></mrow></math>，它在 objects 和 morphisms 上都什么也不改变。</p>
+      <p>Exercise 3.5 指出，Lemma 2.9 中的 <math><mrow><msub><mi>i</mi><mrow><mi>X</mi></mrow></msub><mo>:</mo><mi>X</mi><mo>→</mo><mi>U</mi><mo stretchy="false">(</mo><mi>E</mi><mi>X</mi><mo stretchy="false">)</mo></mrow></math> 当 X 变化时，形成一个 natural transformation： <math><mrow><mi>i</mi><mo>:</mo><msub><mi mathvariant="normal">Id</mi><mrow><mi>𝐒𝐞𝐭</mi></mrow></msub><mo>⇒</mo><mi>U</mi><mo>∘</mo><mi>E</mi></mrow></math> 对任意 <math><mrow><mi>f</mi><mo>:</mo><mi>X</mi><mo>→</mo><mi>Y</mi></mrow></math>，满足： <math><mrow><mi>U</mi><mo stretchy="false">(</mo><mi>E</mi><mi>f</mi><mo stretchy="false">)</mo><mo>∘</mo><msub><mi>i</mi><mrow><mi>X</mi></mrow></msub><mo>=</mo><msub><mi>i</mi><mrow><mi>Y</mi></mrow></msub><mo>∘</mo><mi>f</mi></mrow></math> 之前是一个 X 一个 X 地看 inclusion；现在可以看到，这些 inclusions 本身也 uniform 地 respect 所有 functions f。</p>
+    </section>
+
+    <section class="post-section">
+      <h4 id="theorem-3-7">11.2 Theorem 3.7</h4>
+      <p>回到 <math><mrow><mi>S</mi><mo>,</mo><mi>O</mi><mo>:</mo><msub><mi>𝒞</mi><mrow><mi mathvariant="normal">Arith</mi></mrow></msub><mo>→</mo><msub><mi>𝐒𝐞𝐭</mi><mrow><mo>•</mo></mrow></msub></mrow></math>。Theorem 3.7 给出一个 natural transformation：</p>
+      <div class="equation">
+        <math display="block"><mrow><mi>σ</mi><mo>:</mo><mi>S</mi><mo>⇒</mo><mi>O</mi></mrow></math>
+      </div>
+      <p><math><mrow><msub><mi>𝒞</mi><mrow><mi mathvariant="normal">Arith</mi></mrow></msub></mrow></math> 只有一个 object <math><mrow><mo>∗</mo></mrow></math>，因此只需要一个 component：</p>
+      <div class="equation">
+        <math display="block"><mrow><msub><mi>σ</mi><mrow><mo>∗</mo></mrow></msub><mo>:</mo><mi>S</mi><mo stretchy="false">(</mo><mo>∗</mo><mo stretchy="false">)</mo><mo>→</mo><mi>O</mi><mo stretchy="false">(</mo><mo>∗</mo><mo stretchy="false">)</mo></mrow></math>
+      </div>
+      <p>由于 <math><mrow><mi>S</mi><mo stretchy="false">(</mo><mo>∗</mo><mo stretchy="false">)</mo><mo>=</mo><mo stretchy="false">(</mo><mi>D</mi><mo>,</mo><mi mathvariant="normal">err</mi><mo stretchy="false">)</mo></mrow></math>、<math><mrow><mi>O</mi><mo stretchy="false">(</mo><mo>∗</mo><mo stretchy="false">)</mo><mo>=</mo><mo stretchy="false">(</mo><mi>𝒫</mi><mo stretchy="false">(</mo><msub><mi>ℚ</mi><mrow><mo>≥</mo><mn>0</mn></mrow></msub><mo stretchy="false">)</mo><mo>,</mo><mo>∅</mo><mo stretchy="false">)</mo></mrow></math>，它的 underlying map 是：</p>
+      <div class="equation">
+        <math display="block"><mrow><msub><mi>σ</mi><mrow><mo>∗</mo></mrow></msub><mo>:</mo><mi>D</mi><mo>→</mo><mi>𝒫</mi><mo stretchy="false">(</mo><msub><mi>ℚ</mi><mrow><mo>≥</mo><mn>0</mn></mrow></msub><mo stretchy="false">)</mo></mrow></math>
+      </div>
+      <p>对 <math><mrow><mi>a</mi><mo>∈</mo><msub><mi>ℚ</mi><mrow><mo>≥</mo><mn>0</mn></mrow></msub></mrow></math>，先定义普通 map：</p>
+      <div class="equation">
+        <math display="block"><mrow><mi>η</mi><mo stretchy="false">(</mo><mi>a</mi><mo stretchy="false">)</mo><mo>=</mo><mo stretchy="false">{</mo><mi>a</mi><mo stretchy="false">}</mo></mrow></math>
+      </div>
+      <p>再用 Lemma 2.9 的 extension construction 把它延拓成 based map：</p>
+      <div class="equation">
+        <math display="block"><mrow><msub><mi>σ</mi><mrow><mo>∗</mo></mrow></msub><mo stretchy="false">(</mo><mi>a</mi><mo stretchy="false">)</mo><mo>=</mo><mo stretchy="false">{</mo><mi>a</mi><mo stretchy="false">}</mo></mrow></math>
+      </div>
+      <div class="equation">
+        <math display="block"><mrow><msub><mi>σ</mi><mrow><mo>∗</mo></mrow></msub><mo stretchy="false">(</mo><mi mathvariant="normal">err</mi><mo stretchy="false">)</mo><mo>=</mo><mo>∅</mo></mrow></math>
+      </div>
+      <p>正常 denotational value 对应 operational result singleton；err 对应没有正常 result，也就是 <math><mrow><mo>∅</mo></mrow></math>。</p>
+      <p>要证明 <math><mrow><mi>σ</mi><mo>:</mo><mi>S</mi><mo>⇒</mo><mi>O</mi></mrow></math> 是 natural transformation，对每个 context c，必须让下面的 square commute：</p>
+            <figure class="commutative-diagram lemma-diagram">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 210" role="img" aria-labelledby="nt-semantics-title nt-semantics-desc">
+          <title id="nt-semantics-title">两种 semantics 的 compatibility</title>
+          <desc id="nt-semantics-desc">D 经 sigma 转为正常值集合，再应用 Oc，等于先用 Sc 计算，再经 sigma 转为正常值集合。</desc>
+          <defs><marker id="nt-semantics-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M 1 1 L 9 5 L 1 9" fill="none" stroke="currentColor" stroke-width="1.2" /></marker></defs>
+          <g fill="none" stroke="currentColor" stroke-width="1.2" marker-end="url(#nt-semantics-arrow)">
+            <path d="M 112 46 H 242" /><path d="M 76 65 V 153" />
+            <path d="M 280 65 V 153" /><path d="M 112 170 H 242" />
+          </g>
+          <text x="76" y="53">D</text><text x="280" y="53">𝒫(ℚ<tspan baseline-shift="sub" font-size="12">≥0</tspan>)</text>
+          <text x="76" y="177">D</text><text x="280" y="177">𝒫(ℚ<tspan baseline-shift="sub" font-size="12">≥0</tspan>)</text>
+          <text class="arrow-label" x="178" y="29">σ<tspan baseline-shift="sub" font-size="12">∗</tspan></text><text class="arrow-label" x="178" y="198">σ<tspan baseline-shift="sub" font-size="12">∗</tspan></text>
+          <text class="arrow-label" x="37" y="115">Sc</text><text class="arrow-label" x="324" y="115">Oc</text>
+        </svg>
+      </figure>
+      <div class="equation">
+        <math display="block"><mrow><mi>O</mi><mi>c</mi><mo>∘</mo><msub><mi>σ</mi><mrow><mo>∗</mo></mrow></msub><mo>=</mo><msub><mi>σ</mi><mrow><mo>∗</mo></mrow></msub><mo>∘</mo><mi>S</mi><mi>c</mi></mrow></math>
+      </div>
+      <p>对 <math><mrow><mi>a</mi><mo>∈</mo><msub><mi>ℚ</mi><mrow><mo>≥</mo><mn>0</mn></mrow></msub></mrow></math>，左边是：</p>
+      <div class="equation">
+        <math display="block"><mrow><mo stretchy="false">(</mo><mi>O</mi><mi>c</mi><mo stretchy="false">)</mo><mo stretchy="false">(</mo><msub><mi>σ</mi><mrow><mo>∗</mo></mrow></msub><mo stretchy="false">(</mo><mi>a</mi><mo stretchy="false">)</mo><mo stretchy="false">)</mo><mo>=</mo><mo stretchy="false">(</mo><mi>O</mi><mi>c</mi><mo stretchy="false">)</mo><mo stretchy="false">(</mo><mo stretchy="false">{</mo><mi>a</mi><mo stretchy="false">}</mo><mo stretchy="false">)</mo></mrow></math>
+      </div>
+      <div class="equation">
+        <math display="block"><mrow><mo stretchy="false">(</mo><mi>O</mi><mi>c</mi><mo stretchy="false">)</mo><mo stretchy="false">(</mo><mo stretchy="false">{</mo><mi>a</mi><mo stretchy="false">}</mo><mo stretchy="false">)</mo><mo>=</mo><mo stretchy="false">{</mo><mi>b</mi><mo>∈</mo><msub><mi>ℚ</mi><mrow><mo>≥</mo><mn>0</mn></mrow></msub><mo>∣</mo><mi>c</mi><mo stretchy="false">[</mo><mi>a</mi><mo stretchy="false">]</mo><mo>⇓</mo><mi>b</mi><mo stretchy="false">}</mo></mrow></math>
+      </div>
+      <p>因此需要证明：</p>
+      <div class="equation">
+        <math display="block"><mrow><mo stretchy="false">{</mo><mi>b</mi><mo>∈</mo><msub><mi>ℚ</mi><mrow><mo>≥</mo><mn>0</mn></mrow></msub><mo>∣</mo><mi>c</mi><mo stretchy="false">[</mo><mi>a</mi><mo stretchy="false">]</mo><mo>⇓</mo><mi>b</mi><mo stretchy="false">}</mo><mo>=</mo><msub><mi>σ</mi><mrow><mo>∗</mo></mrow></msub><mo stretchy="false">(</mo><mi>ℰ</mi><mo>⟦</mo><mi>c</mi><mo stretchy="false">[</mo><mi>a</mi><mo stretchy="false">]</mo><mo>⟧</mo><mo stretchy="false">)</mo></mrow></math>
+      </div>
+      <p>左边是 operational semantics 能执行到的正常结果；右边把 denotational result 转成 O 的 representation。这里 naturality formalise 的，就是两种 semantics 对同一个 context 的 compatibility。</p>
+    </section>
+
+    <section class="post-section">
+      <h4 id="lemma-3-8">11.3 Lemma 3.8</h4>
+      <p>对于所有 contexts c 和 <math><mrow><mi>a</mi><mo>∈</mo><msub><mi>ℚ</mi><mrow><mo>≥</mo><mn>0</mn></mrow></msub></mrow></math>，有三条：</p>
+      <p>1. 如果 <math><mrow><mi>ℰ</mi><mo>⟦</mo><mi>c</mi><mo stretchy="false">[</mo><mi>a</mi><mo stretchy="false">]</mo><mo>⟧</mo><mo>=</mo><mi mathvariant="normal">err</mi></mrow></math>，就不存在 b ∈ ℚ≥0 满足 <math><mrow><mi>c</mi><mo stretchy="false">[</mo><mi>a</mi><mo stretchy="false">]</mo><mo>⇓</mo><mi>b</mi></mrow></math>。Denotational semantics 是 error 时，operational semantics 不会得到正常 result。</p>
+      <p>2. 如果 <math><mrow><mi>ℰ</mi><mo>⟦</mo><mi>c</mi><mo stretchy="false">[</mo><mi>a</mi><mo stretchy="false">]</mo><mo>⟧</mo><mo>∈</mo><msub><mi>ℚ</mi><mrow><mo>≥</mo><mn>0</mn></mrow></msub></mrow></math>，那么：</p>
+      <div class="equation">
+        <math display="block"><mrow><mi>c</mi><mo stretchy="false">[</mo><mi>a</mi><mo stretchy="false">]</mo><mo>⇓</mo><mi>ℰ</mi><mo>⟦</mo><mi>c</mi><mo stretchy="false">[</mo><mi>a</mi><mo stretchy="false">]</mo><mo>⟧</mo></mrow></math>
+      </div>
+      <p>也就是 denotational semantics 得到的正常 value，operational semantics 确实能执行到。</p>
+      <p>3. Big-step operational semantics 是 deterministic：如果 <math><mrow><mi>c</mi><mo stretchy="false">[</mo><mi>a</mi><mo stretchy="false">]</mo><mo>⇓</mo><mi>b</mi></mrow></math> 和 <math><mrow><mi>c</mi><mo stretchy="false">[</mo><mi>a</mi><mo stretchy="false">]</mo><mo>⇓</mo><mi>b′</mi></mrow></math> 都成立，那么 <math><mrow><mi>b</mi><mo>=</mo><mi>b′</mi></mrow></math>。同一个 expression 不会有两个不同的 results。</p>
+      <p>Proof idea：先证明 item 3：从 big-step rules 出发，对 derivation 做 induction，对齐同一个 expression 的两次推导。 再把 item 1 / 2 放在一起，对 context c 做 structural induction。每个 constructor 都利用子 context 的结论，以及对应的 denotational definition 和 operational rule。不需要额外的结构。</p>
+      <p>Case 1：<math><mrow><mi>ℰ</mi><mo>⟦</mo><mi>c</mi><mo stretchy="false">[</mo><mi>a</mi><mo stretchy="false">]</mo><mo>⟧</mo><mo>=</mo><mi mathvariant="normal">err</mi></mrow></math>。由 Lemma 3.8 item 1，没有正常 b 满足 <math><mrow><mi>c</mi><mo stretchy="false">[</mo><mi>a</mi><mo stretchy="false">]</mo><mo>⇓</mo><mi>b</mi></mrow></math>，所以：</p>
+      <div class="equation">
+        <math display="block"><mrow><mo stretchy="false">(</mo><mi>O</mi><mi>c</mi><mo stretchy="false">)</mo><mo stretchy="false">(</mo><mo stretchy="false">{</mo><mi>a</mi><mo stretchy="false">}</mo><mo stretchy="false">)</mo><mo>=</mo><mo>∅</mo><mo>=</mo><msub><mi>σ</mi><mrow><mo>∗</mo></mrow></msub><mo stretchy="false">(</mo><mi mathvariant="normal">err</mi><mo stretchy="false">)</mo></mrow></math>
+      </div>
+      <p>Case 2：<math><mrow><mi>ℰ</mi><mo>⟦</mo><mi>c</mi><mo stretchy="false">[</mo><mi>a</mi><mo stretchy="false">]</mo><mo>⟧</mo><mo>∈</mo><msub><mi>ℚ</mi><mrow><mo>≥</mo><mn>0</mn></mrow></msub></mrow></math>。Item 2 保证能执行到这个结果，determinism 保证没有其他不同的正常结果，因此：</p>
+      <div class="equation">
+        <math display="block"><mrow><mo stretchy="false">(</mo><mi>O</mi><mi>c</mi><mo stretchy="false">)</mo><mo stretchy="false">(</mo><mo stretchy="false">{</mo><mi>a</mi><mo stretchy="false">}</mo><mo stretchy="false">)</mo><mo>=</mo><mo stretchy="false">{</mo><mi>ℰ</mi><mo>⟦</mo><mi>c</mi><mo stretchy="false">[</mo><mi>a</mi><mo stretchy="false">]</mo><mo>⟧</mo><mo stretchy="false">}</mo></mrow></math>
+      </div>
+      <div class="equation">
+        <math display="block"><mrow><mo stretchy="false">{</mo><mi>ℰ</mi><mo>⟦</mo><mi>c</mi><mo stretchy="false">[</mo><mi>a</mi><mo stretchy="false">]</mo><mo>⟧</mo><mo stretchy="false">}</mo><mo>=</mo><msub><mi>σ</mi><mrow><mo>∗</mo></mrow></msub><mo stretchy="false">(</mo><mi>ℰ</mi><mo>⟦</mo><mi>c</mi><mo stretchy="false">[</mo><mi>a</mi><mo stretchy="false">]</mo><mo>⟧</mo><mo stretchy="false">)</mo></mrow></math>
+      </div>
+      <p>输入 err 时，因为 Sc 和 Oc 都是 based maps，两条 path 也都落到 <math><mrow><mo>∅</mo></mrow></math>。因此自然性在整个 D 上成立。</p>
+      <p>Normal case 的集合相等可以拆成两个 inclusions。其中： <math><mrow><msub><mi>σ</mi><mrow><mo>∗</mo></mrow></msub><mo stretchy="false">(</mo><mi>ℰ</mi><mo>⟦</mo><mi>c</mi><mo stretchy="false">[</mo><mi>a</mi><mo stretchy="false">]</mo><mo>⟧</mo><mo stretchy="false">)</mo><mo>⊆</mo><mo stretchy="false">(</mo><mi>O</mi><mi>c</mi><mo stretchy="false">)</mo><mo stretchy="false">(</mo><mo stretchy="false">{</mo><mi>a</mi><mo stretchy="false">}</mo><mo stretchy="false">)</mo></mrow></math> 对应 Lemma 3.8 item 2。这里把这个方向称为 denotational semantics 的 soundness：它给出的正常结果，operational semantics 确实能够执行出来。 另一方向还要用 determinism，保证 operational result set 没有额外的不同结果。</p>
+    </section>
+
+    <section class="post-section">
+      <h4 id="example-3-9">11.4 Example 3.9</h4>
+      <p>定义 functor：</p>
+      <div class="equation">
+        <math display="block"><mrow><mi>F</mi><mo>:</mo><mi>𝐒𝐞𝐭</mi><mo>→</mo><msub><mi>𝐒𝐞𝐭</mi><mrow><mo>•</mo></mrow></msub></mrow></math>
+      </div>
+      <div class="equation">
+        <math display="block"><mrow><mi>F</mi><mo stretchy="false">(</mo><mi>X</mi><mo stretchy="false">)</mo><mo>=</mo><mo stretchy="false">(</mo><mi>𝒫</mi><mo stretchy="false">(</mo><mi>X</mi><mo stretchy="false">)</mo><mo>,</mo><mo>∅</mo><mo stretchy="false">)</mo></mrow></math>
+      </div>
+      <p>对于 <math><mrow><mi>f</mi><mo>:</mo><mi>X</mi><mo>→</mo><mi>Y</mi></mrow></math>，在 morphisms 上取 direct image：对 <math><mrow><mi>U</mi><mo>⊆</mo><mi>X</mi></mrow></math>，</p>
+      <div class="equation">
+        <math display="block"><mrow><mo stretchy="false">(</mo><mi>F</mi><mi>f</mi><mo stretchy="false">)</mo><mo stretchy="false">(</mo><mi>U</mi><mo stretchy="false">)</mo><mo>=</mo><mo stretchy="false">{</mo><mi>f</mi><mo stretchy="false">(</mo><mi>x</mi><mo stretchy="false">)</mo><mo>∣</mo><mi>x</mi><mo>∈</mo><mi>U</mi><mo stretchy="false">}</mo></mrow></math>
+      </div>
+      <p>现在考虑 <math><mrow><msub><mi>α</mi><mrow><mi>X</mi></mrow></msub><mo>:</mo><mi>F</mi><mo stretchy="false">(</mo><mi>X</mi><mo stretchy="false">)</mo><mo>→</mo><mi>E</mi><mo stretchy="false">(</mo><mi>X</mi><mo stretchy="false">)</mo></mrow></math>，其中 E 是 Lemma 2.9 中 adjoin a base point 的 functor。这里把 E(X) 的底层集合写成 <math><mrow><mi>X</mi><mo>⊔</mo><mo stretchy="false">{</mo><mo>∗</mo><mo stretchy="false">}</mo></mrow></math>：新 base point 记作 ∗，原元素仍用原名，只是对前面的 tagged construction 重新命名。</p>
+      <div class="equation">
+        <math display="block"><mrow><msub><mi>α</mi><mrow><mi>X</mi></mrow></msub><mo stretchy="false">(</mo><mo>∅</mo><mo stretchy="false">)</mo><mo>=</mo><mo>∗</mo></mrow></math>
+      </div>
+      <p>如果 <math><mrow><mi>U</mi><mo>≠</mo><mo>∅</mo></mrow></math>，就从 U 中选一个元素。选定之后，每个 component 单独看是 based map，但放到整个 diagram 里就不一定行。</p>
+      <p>取教材的例子：</p>
+      <div class="equation">
+        <math display="block"><mrow><mi>X</mi><mo>=</mo><mo stretchy="false">{</mo><mn>0</mn><mo>,</mo><mn>1</mn><mo stretchy="false">}</mo></mrow></math>
+      </div>
+      <div class="equation">
+        <math display="block"><mrow><mi>Y</mi><mo>=</mo><mo stretchy="false">{</mo><mn>2</mn><mo>,</mo><mn>3</mn><mo stretchy="false">}</mo></mrow></math>
+      </div>
+      <p>两边都规定选 minimum，所以 <math><mrow><msub><mi>α</mi><mrow><mi>X</mi></mrow></msub><mo stretchy="false">(</mo><mi>X</mi><mo stretchy="false">)</mo><mo>=</mo><mn>0</mn></mrow></math>、<math><mrow><msub><mi>α</mi><mrow><mi>Y</mi></mrow></msub><mo stretchy="false">(</mo><mi>Y</mi><mo stretchy="false">)</mo><mo>=</mo><mn>2</mn></mrow></math>。定义 <math><mrow><mi>f</mi><mo>:</mo><mi>X</mi><mo>→</mo><mi>Y</mi></mrow></math> 为：</p>
+      <div class="equation">
+        <math display="block"><mrow><mi>f</mi><mo stretchy="false">(</mo><mn>0</mn><mo stretchy="false">)</mo><mo>=</mo><mn>3</mn></mrow></math>
+      </div>
+      <div class="equation">
+        <math display="block"><mrow><mi>f</mi><mo stretchy="false">(</mo><mn>1</mn><mo stretchy="false">)</mo><mo>=</mo><mn>2</mn></mrow></math>
+      </div>
+      <p>先选再映射：</p>
+      <div class="equation">
+        <math display="block"><mrow><mo stretchy="false">(</mo><mi>E</mi><mi>f</mi><mo stretchy="false">)</mo><mo stretchy="false">(</mo><msub><mi>α</mi><mrow><mi>X</mi></mrow></msub><mo stretchy="false">(</mo><mi>X</mi><mo stretchy="false">)</mo><mo stretchy="false">)</mo><mo>=</mo><mo stretchy="false">(</mo><mi>E</mi><mi>f</mi><mo stretchy="false">)</mo><mo stretchy="false">(</mo><mn>0</mn><mo stretchy="false">)</mo></mrow></math>
+      </div>
+      <div class="equation">
+        <math display="block"><mrow><mo stretchy="false">(</mo><mi>E</mi><mi>f</mi><mo stretchy="false">)</mo><mo stretchy="false">(</mo><mn>0</mn><mo stretchy="false">)</mo><mo>=</mo><mi>f</mi><mo stretchy="false">(</mo><mn>0</mn><mo stretchy="false">)</mo><mo>=</mo><mn>3</mn></mrow></math>
+      </div>
+      <p>先取 direct image 再选：</p>
+      <div class="equation">
+        <math display="block"><mrow><msub><mi>α</mi><mrow><mi>Y</mi></mrow></msub><mo stretchy="false">(</mo><mo stretchy="false">(</mo><mi>F</mi><mi>f</mi><mo stretchy="false">)</mo><mo stretchy="false">(</mo><mi>X</mi><mo stretchy="false">)</mo><mo stretchy="false">)</mo><mo>=</mo><msub><mi>α</mi><mrow><mi>Y</mi></mrow></msub><mo stretchy="false">(</mo><mi>Y</mi><mo stretchy="false">)</mo><mo>=</mo><mn>2</mn></mrow></math>
+      </div>
+      <p>因为 <math><mrow><mn>3</mn><mo>≠</mo><mn>2</mn></mrow></math>，</p>
+      <div class="equation">
+        <math display="block"><mrow><mi>E</mi><mi>f</mi><mo>∘</mo><msub><mi>α</mi><mrow><mi>X</mi></mrow></msub><mo>≠</mo><msub><mi>α</mi><mrow><mi>Y</mi></mrow></msub><mo>∘</mo><mi>F</mi><mi>f</mi></mrow></math>
+      </div>
+      <p>Naturality square 不 commute。问题不是单独的 <math><mrow><msub><mi>α</mi><mrow><mi>X</mi></mrow></msub></mrow></math> 不合法，而是“从集合中选一个 element”这个 choice 不能 uniform 地 respect arbitrary functions f。因此这组 maps 不是 natural transformation。</p>
+    </section>
+    <p style="font-size: 0.875em;">Material: Henning Basold, <em>Two Voice Semantics</em> · <a href="https://gitlab.com/hbasold/two-voice-semantics">GitLab</a></p>
+  </article>
+
+  <nav class="page-navigation"><a href="../index.html">Home</a> / <a href="./index.html">Blog</a></nav>
+  </main>
+
+  <div class="rabbits">
+    <img src="../土豆%20%26%20糯米/rabbits-together.jpeg" alt="Tudou and Nuomi resting together">
+  </div>
+
+</body>
+</html>
