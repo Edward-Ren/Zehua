@@ -29,6 +29,12 @@
     .commutative-diagram .diagram-heading { font-style: normal; font-weight: bold; }
     .commutative-diagram .base-point { color: #245a91; }
     .lemma-diagram { max-width: 360px; }
+    .hierarchy-summary { margin: 32px 0; }
+    .hierarchy-row { display: grid; grid-template-columns: minmax(78px, 1fr) minmax(0, 2fr) minmax(78px, 1fr); gap: 8px; align-items: center; padding-top: 24px; margin-bottom: 12px; }
+    .hierarchy-node { border: 1px solid #aebba0; padding: 8px 4px; text-align: center; font-size: 0.875em; }
+    .hierarchy-arrow { position: relative; height: 1px; background: currentColor; }
+    .hierarchy-arrow::after { content: ""; position: absolute; right: 1px; top: -3px; width: 6px; height: 6px; border-top: 1px solid; border-right: 1px solid; transform: rotate(45deg); }
+    .hierarchy-label { position: absolute; bottom: 8px; left: 0; width: 100%; text-align: center; font-size: 0.875em; line-height: 1.2; }
     @media (max-width: 480px) {
       .category-comparison { grid-template-columns: 1fr; gap: 0; }
     }
@@ -64,8 +70,7 @@
             <li><a href="#functor-example-2">5.2 Functor Example 2：Graph Functor</a></li>
           </ul>
         </li>
-        <li><a href="#lemma-2-9">6. Lemma 2.9：给 Set 加一个 base point</a></li>
-        <li><a href="#lemma-2-9-proof">7. Lemma 2.9 的证明（通俗版）</a></li>
+        <li><a href="#lemma-2-9">6. Lemma 2.9：给一个 Set 加上 base point</a></li>
         <li><a href="#context-substitution">8. Context 和 Substitution</a>
           <ul>
             <li><a href="#example-3-2">8.1 Example 3.2</a></li>
@@ -455,29 +460,55 @@
     </section>
 
     <section class="post-section">
-      <h3 id="lemma-2-9">6. Lemma 2.9：给 Set 加一个 base point</h3>
-      <p>前面把 err 看成了 base point。现在再看“给一个 set 加一个新的 base point”这件事情本身。</p>
-      <p>存在一个 functor：</p>
+      <h3 id="lemma-2-9">6. Lemma 2.9：给一个 Set 加上 base point</h3>
+      <p>给 set X 加一个新 base point，得到 EX。这个 construction 是 functor，并让普通 map <math><mrow><mi>f</mi><mo>:</mo><mi>X</mi><mo>→</mo><mi>U</mi><mo stretchy="false">(</mo><mo stretchy="false">(</mo><mi>Y</mi><mo>,</mo><msub><mi>y</mi><mrow><mn>0</mn></mrow></msub><mo stretchy="false">)</mo><mo stretchy="false">)</mo></mrow></math> 唯一扩展成 based map <math><mrow><mover><mi>f</mi><mo>¯</mo></mover><mo>:</mo><mi>E</mi><mi>X</mi><mo>→</mo><mo stretchy="false">(</mo><mi>Y</mi><mo>,</mo><msub><mi>y</mi><mrow><mn>0</mn></mrow></msub><mo stretchy="false">)</mo></mrow></math>。</p>
+
+      <h4 id="define-ex">怎么给 X 加一个 base point？</h4>
       <div class="equation">
-        <math display="block"><mrow><mi>E</mi><mo>:</mo><mi>𝐒𝐞𝐭</mi><mo>→</mo><msub><mi>𝐒𝐞𝐭</mi><mo>•</mo></msub></mrow></math>
+        <math display="block"><mrow><mi>X</mi><mo>⊔</mo><mo stretchy="false">{</mo><mo>∗</mo><mo stretchy="false">}</mo></mrow></math>
       </div>
-      <p>对每个 set <math><mi>X</mi></math>，有一个 map：</p>
+      <p>即在 X 外加入新点 ∗，也写作 <math><mrow><mi>X</mi><mo>+</mo><mn>1</mn></mrow></math>。教材的具体实现是：</p>
       <div class="equation">
-        <math display="block"><mrow><msub><mi>i</mi><mi>X</mi></msub><mo>:</mo><mi>X</mi><mo>→</mo><mi>U</mi><mo stretchy="false">(</mo><mi>E</mi><mi>X</mi><mo stretchy="false">)</mo></mrow></math>
+        <math display="block"><mrow><mi>E</mi><mi>X</mi><mo>=</mo><mo stretchy="false">(</mo><mo stretchy="false">{</mo><mn>0</mn><mo stretchy="false">}</mo><mo>∪</mo><mo stretchy="false">{</mo><mo stretchy="false">(</mo><mn>1</mn><mo>,</mo><mi>x</mi><mo stretchy="false">)</mo><mo>∣</mo><mi>x</mi><mo>∈</mo><mi>X</mi><mo stretchy="false">}</mo><mo>,</mo><mn>0</mn><mo stretchy="false">)</mo></mrow></math>
       </div>
-      <p>这里 <math><mi>U</mi></math> 就是前面的 forgetful functor。对于任意 based set <math><mo stretchy="false">(</mo><mi>Y</mi><mo>,</mo><msub><mi>y</mi><mn>0</mn></msub><mo stretchy="false">)</mo></math> 和普通 map：</p>
+      <p>不能直接写 <math><mrow><mi>X</mi><mo>∪</mo><mo stretchy="false">{</mo><mn>0</mn><mo stretchy="false">}</mo></mrow></math>，因为 0 可能已在 X 中。把 x 包装成 <math><mrow><mo stretchy="false">(</mo><mn>1</mn><mo>,</mo><mi>x</mi><mo stretchy="false">)</mo></mrow></math> 后，新增的 0 就与原元素不同，指定它为 base point。</p>
+      <p><math><mrow><msub><mi>i</mi><mrow><mi>X</mi></mrow></msub><mo stretchy="false">(</mo><mi>x</mi><mo stretchy="false">)</mo><mo>=</mo><mo stretchy="false">(</mo><mn>1</mn><mo>,</mo><mi>x</mi><mo stretchy="false">)</mo></mrow></math> 把 X 放进 EX；U 仍是 forgetful functor。</p>
+
+      <p><strong>这个 proof 只有两件事：</strong></p>
+      <ol>
+        <li>证明 E 真的是一个 functor；</li>
+        <li>证明 f 的 based extension 存在且唯一。</li>
+      </ol>
+
+      <h4 id="e-is-a-functor">Part 1：E 是 functor</h4>
+      <p>对 <math><mrow><mi>f</mi><mo>:</mo><mi>X</mi><mo>→</mo><mi>Y</mi></mrow></math>，定义：</p>
       <div class="equation">
-        <math display="block"><mrow><mi>f</mi><mo>:</mo><mi>X</mi><mo>→</mo><mi>U</mi><mo stretchy="false">(</mo><mi>Y</mi><mo>,</mo><msub><mi>y</mi><mn>0</mn></msub><mo stretchy="false">)</mo></mrow></math>
+        <math display="block"><mrow><mtable columnalign="left" rowspacing="0.3em"><mtr><mtd><mo stretchy="false">(</mo><mi>E</mi><mi>f</mi><mo stretchy="false">)</mo><mo stretchy="false">(</mo><mn>1</mn><mo>,</mo><mi>x</mi><mo stretchy="false">)</mo><mo>=</mo><mo stretchy="false">(</mo><mn>1</mn><mo>,</mo><mi>f</mi><mo stretchy="false">(</mo><mi>x</mi><mo stretchy="false">)</mo><mo stretchy="false">)</mo></mtd></mtr><mtr><mtd><mo stretchy="false">(</mo><mi>E</mi><mi>f</mi><mo stretchy="false">)</mo><mo stretchy="false">(</mo><mn>0</mn><mo stretchy="false">)</mo><mo>=</mo><mn>0</mn></mtd></mtr></mtable></mrow></math>
       </div>
-      <p>存在唯一一个 based map：</p>
+      <p>普通元素按 f 走，base point 仍送到 base point。</p>
+      <p><strong>Identity：</strong><math><mrow><mi>E</mi><mo stretchy="false">(</mo><msub><mi mathvariant="normal">id</mi><mrow><mi>X</mi></mrow></msub><mo stretchy="false">)</mo><mo>=</mo><msub><mi mathvariant="normal">id</mi><mrow><mi>E</mi><mi>X</mi></mrow></msub></mrow></math>，因为 <math><mrow><mo stretchy="false">(</mo><mn>1</mn><mo>,</mo><mi>x</mi><mo stretchy="false">)</mo></mrow></math> 和 0 都被送回自身。</p>
+      <p><strong>Composition：</strong>对 <math><mrow><mi>f</mi><mo>:</mo><mi>X</mi><mo>→</mo><mi>Y</mi></mrow></math>、<math><mrow><mi>g</mi><mo>:</mo><mi>Y</mi><mo>→</mo><mi>Z</mi></mrow></math>，关键计算是：</p>
       <div class="equation">
-        <math display="block"><mrow><mover><mi>f</mi><mo>¯</mo></mover><mo>:</mo><mi>E</mi><mi>X</mi><mo>→</mo><mo stretchy="false">(</mo><mi>Y</mi><mo>,</mo><msub><mi>y</mi><mn>0</mn></msub><mo stretchy="false">)</mo></mrow></math>
+        <math display="block"><mrow><mo stretchy="false">(</mo><mn>1</mn><mo>,</mo><mi>x</mi><mo stretchy="false">)</mo><mover accent="false"><mo>→</mo><mrow><mi>E</mi><mi>f</mi></mrow></mover><mo stretchy="false">(</mo><mn>1</mn><mo>,</mo><mi>f</mi><mo stretchy="false">(</mo><mi>x</mi><mo stretchy="false">)</mo><mo stretchy="false">)</mo><mover accent="false"><mo>→</mo><mrow><mi>E</mi><mi>g</mi></mrow></mover><mo stretchy="false">(</mo><mn>1</mn><mo>,</mo><mi>g</mi><mo stretchy="false">(</mo><mi>f</mi><mo stretchy="false">(</mo><mi>x</mi><mo stretchy="false">)</mo><mo stretchy="false">)</mo><mo stretchy="false">)</mo></mrow></math>
       </div>
-      <p>使得：</p>
+      <p>而 base point 始终是 <math><mrow><mn>0</mn><mo>→</mo><mn>0</mn><mo>→</mo><mn>0</mn></mrow></math>，因此：</p>
       <div class="equation">
-        <math display="block"><mrow><mi>U</mi><mo stretchy="false">(</mo><mover><mi>f</mi><mo>¯</mo></mover><mo stretchy="false">)</mo><mo>∘</mo><msub><mi>i</mi><mi>X</mi></msub><mo>=</mo><mi>f</mi></mrow></math>
+        <math display="block"><mrow><mi>E</mi><mo stretchy="false">(</mo><mi>g</mi><mo>∘</mo><mi>f</mi><mo stretchy="false">)</mo><mo>=</mo><mi>E</mi><mi>g</mi><mo>∘</mo><mi>E</mi><mi>f</mi></mrow></math>
       </div>
-      <figure class="commutative-diagram lemma-diagram">
+      <p>所以 <math><mrow><mi>E</mi><mo>:</mo><mi>𝐒𝐞𝐭</mi><mo>→</mo><msub><mi>𝐒𝐞𝐭</mi><mrow><mo>•</mo></mrow></msub></mrow></math> 确实是一个 functor。</p>
+
+      <h4 id="define-extension">Part 2：extension 存在且唯一</h4>
+      <p>给定 <math><mrow><mi>f</mi><mo>:</mo><mi>X</mi><mo>→</mo><mi>U</mi><mo stretchy="false">(</mo><mo stretchy="false">(</mo><mi>Y</mi><mo>,</mo><msub><mi>y</mi><mrow><mn>0</mn></mrow></msub><mo stretchy="false">)</mo><mo stretchy="false">)</mo></mrow></math>，直接定义：</p>
+      <div class="equation">
+        <math display="block"><mrow><mtable columnalign="left" rowspacing="0.3em"><mtr><mtd><mover><mi>f</mi><mo>¯</mo></mover><mo stretchy="false">(</mo><mn>1</mn><mo>,</mo><mi>x</mi><mo stretchy="false">)</mo><mo>=</mo><mi>f</mi><mo stretchy="false">(</mo><mi>x</mi><mo stretchy="false">)</mo></mtd></mtr><mtr><mtd><mover><mi>f</mi><mo>¯</mo></mover><mo stretchy="false">(</mo><mn>0</mn><mo stretchy="false">)</mo><mo>=</mo><msub><mi>y</mi><mrow><mn>0</mn></mrow></msub></mtd></mtr></mtable></mrow></math>
+      </div>
+      <p>原元素按 f 走，新 base point 送到目标的 base point。</p>
+      <p><strong>存在 / diagram commute：</strong></p>
+      <div class="equation">
+        <math display="block"><mrow><mi>U</mi><mo stretchy="false">(</mo><mover><mi>f</mi><mo>¯</mo></mover><mo stretchy="false">)</mo><mo stretchy="false">(</mo><msub><mi>i</mi><mrow><mi>X</mi></mrow></msub><mo stretchy="false">(</mo><mi>x</mi><mo stretchy="false">)</mo><mo stretchy="false">)</mo><mo>=</mo><mover><mi>f</mi><mo>¯</mo></mover><mo stretchy="false">(</mo><mn>1</mn><mo>,</mo><mi>x</mi><mo stretchy="false">)</mo><mo>=</mo><mi>f</mi><mo stretchy="false">(</mo><mi>x</mi><mo stretchy="false">)</mo></mrow></math>
+      </div>
+      <p>所以 <math><mrow><mi>U</mi><mo stretchy="false">(</mo><mover><mi>f</mi><mo>¯</mo></mover><mo stretchy="false">)</mo><mo>∘</mo><msub><mi>i</mi><mrow><mi>X</mi></mrow></msub><mo>=</mo><mi>f</mi></mrow></math>。图中虚线就是这个 extension 的底层 map。</p>
+            <figure class="commutative-diagram lemma-diagram">
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 200" role="img" aria-labelledby="extension-title extension-desc">
           <title id="extension-title">普通 map 的唯一 based extension</title>
           <desc id="extension-desc">X 经 inclusion i_X 向上映入 U(EX)，再经 U(f̄) 到 U(Y, y₀)，等于 X 直接经 f 到 U(Y, y₀)。虚线表示由 f 唯一确定的 extension。</desc>
@@ -499,86 +530,19 @@
           <text class="arrow-label" x="177" y="129">f</text>
         </svg>
       </figure>
-      <p>虚线表示这条 map 不是原本就有的，而是为了让 diagram commute，由 <math><mi>f</mi></math> 和 base point structure 唯一补出来的；这个补出来的 <math><mover><mi>f</mi><mo>¯</mo></mover></math> 就叫 unique extension。</p>
-      <p>也就是说，原来的普通 map <math><mi>f</mi><mo>:</mo><mi>X</mi><mo>→</mo><mi>U</mi><mo stretchy="false">(</mo><mi>Y</mi><mo>,</mo><msub><mi>y</mi><mn>0</mn></msub><mo stretchy="false">)</mo></math>，可以唯一地延拓成 based map <math><mover><mi>f</mi><mo>¯</mo></mover><mo>:</mo><mi>E</mi><mi>X</mi><mo>→</mo><mo stretchy="false">(</mo><mi>Y</mi><mo>,</mo><msub><mi>y</mi><mn>0</mn></msub><mo stretchy="false">)</mo></math>；lemma 保证它存在且唯一。</p>
-    </section>
 
-    <section class="post-section">
-      <h3 id="lemma-2-9-proof">7. Lemma 2.9 的证明（通俗版）</h3>
+      <p><strong>为什么是唯一的？</strong>设 based map <math><mrow><mi>h</mi><mo>:</mo><mi>E</mi><mi>X</mi><mo>→</mo><mo stretchy="false">(</mo><mi>Y</mi><mo>,</mo><msub><mi>y</mi><mrow><mn>0</mn></mrow></msub><mo stretchy="false">)</mo></mrow></math> 也满足 <math><mrow><mi>U</mi><mo stretchy="false">(</mo><mi>h</mi><mo stretchy="false">)</mo><mo>∘</mo><msub><mi>i</mi><mrow><mi>X</mi></mrow></msub><mo>=</mo><mi>f</mi></mrow></math>。EX 只有两种元素：</p>
+      <p>对于普通元素 <math><mrow><mo stretchy="false">(</mo><mn>1</mn><mo>,</mo><mi>x</mi><mo stretchy="false">)</mo></mrow></math>，由 diagram commute：</p>
+      <div class="equation">
+        <math display="block"><mrow><mi>h</mi><mo stretchy="false">(</mo><mn>1</mn><mo>,</mo><mi>x</mi><mo stretchy="false">)</mo><mo>=</mo><mi>f</mi><mo stretchy="false">(</mo><mi>x</mi><mo stretchy="false">)</mo><mo>=</mo><mover><mi>f</mi><mo>¯</mo></mover><mo stretchy="false">(</mo><mn>1</mn><mo>,</mo><mi>x</mi><mo stretchy="false">)</mo></mrow></math>
+      </div>
+      <p>对于 base point 0，因为 h 是 based map：</p>
+      <div class="equation">
+        <math display="block"><mrow><mi>h</mi><mo stretchy="false">(</mo><mn>0</mn><mo stretchy="false">)</mo><mo>=</mo><msub><mi>y</mi><mrow><mn>0</mn></mrow></msub><mo>=</mo><mover><mi>f</mi><mo>¯</mo></mover><mo stretchy="false">(</mo><mn>0</mn><mo stretchy="false">)</mo></mrow></math>
+      </div>
+      <p>每个元素上的值都相同，所以 <math><mrow><mi>h</mi><mo>=</mo><mover><mi>f</mi><mo>¯</mo></mover></mrow></math>。普通元素的值由 commutative diagram 决定，base point 的值由 based-map 条件决定，没有自由度，因此 extension 唯一。</p>
 
-      <h4 id="define-ex">Step 1：定义 EX</h4>
-      <div class="equation">
-        <math display="block"><mrow><mi>E</mi><mi>X</mi><mo>=</mo><mo stretchy="false">(</mo><mo>{</mo><mn>0</mn><mo>}</mo><mo>∪</mo><mo>{</mo><mo stretchy="false">(</mo><mn>1</mn><mo>,</mo><mi>x</mi><mo stretchy="false">)</mo><mo>∣</mo><mi>x</mi><mo>∈</mo><mi>X</mi><mo>}</mo><mo>,</mo><mn>0</mn><mo stretchy="false">)</mo></mrow></math>
-      </div>
-      <p>不能直接写 <math><mi>X</mi><mo>∪</mo><mo>{</mo><mn>0</mn><mo>}</mo></math>，因为 0 可能已经在 <math><mi>X</mi></math> 里。所以把原来的 <math><mi>x</mi></math> 包装成 <math><mo stretchy="false">(</mo><mn>1</mn><mo>,</mo><mi>x</mi><mo stretchy="false">)</mo></math>，再额外加入新的 base point 0。</p>
-
-      <h4 id="define-e-on-morphisms">Step 2：定义 E 在 morphisms 上的行为</h4>
-      <p>如果 <math><mi>f</mi><mo>:</mo><mi>X</mi><mo>→</mo><mi>Y</mi></math>，定义：</p>
-      <div class="equation">
-        <math display="block"><mrow><mo stretchy="false">(</mo><mi>E</mi><mi>f</mi><mo stretchy="false">)</mo><mo stretchy="false">(</mo><mn>1</mn><mo>,</mo><mi>x</mi><mo stretchy="false">)</mo><mo>=</mo><mo stretchy="false">(</mo><mn>1</mn><mo>,</mo><mi>f</mi><mo stretchy="false">(</mo><mi>x</mi><mo stretchy="false">)</mo><mo stretchy="false">)</mo></mrow></math>
-      </div>
-      <div class="equation">
-        <math display="block"><mrow><mo stretchy="false">(</mo><mi>E</mi><mi>f</mi><mo stretchy="false">)</mo><mo stretchy="false">(</mo><mn>0</mn><mo stretchy="false">)</mo><mo>=</mo><mn>0</mn></mrow></math>
-      </div>
-      <p>普通元素照着 <math><mi>f</mi></math> 走，base point 仍然送到 base point。</p>
-
-      <h4 id="e-is-a-functor">Step 3：说明 E 是 functor</h4>
-      <p>Identity 把 <math><mo stretchy="false">(</mo><mn>1</mn><mo>,</mo><mi>x</mi><mo stretchy="false">)</mo></math> 和 0 都送回自身，所以：</p>
-      <div class="equation">
-        <math display="block"><mrow><mi>E</mi><mo stretchy="false">(</mo><msub><mi mathvariant="normal">id</mi><mi>X</mi></msub><mo stretchy="false">)</mo><mo>=</mo><msub><mi mathvariant="normal">id</mi><mrow><mi>E</mi><mi>X</mi></mrow></msub></mrow></math>
-      </div>
-      <p>对于可组合的 <math><mi>f</mi></math>、<math><mi>g</mi></math>，两边都把 <math><mo stretchy="false">(</mo><mn>1</mn><mo>,</mo><mi>x</mi><mo stretchy="false">)</mo></math> 送到 <math><mo stretchy="false">(</mo><mn>1</mn><mo>,</mo><mi>g</mi><mo stretchy="false">(</mo><mi>f</mi><mo stretchy="false">(</mo><mi>x</mi><mo stretchy="false">)</mo><mo stretchy="false">)</mo><mo stretchy="false">)</mo></math>，把 0 送到 0，所以：</p>
-      <div class="equation">
-        <math display="block"><mrow><mi>E</mi><mo stretchy="false">(</mo><mi>g</mi><mo>∘</mo><mi>f</mi><mo stretchy="false">)</mo><mo>=</mo><mi>E</mi><mo stretchy="false">(</mo><mi>g</mi><mo stretchy="false">)</mo><mo>∘</mo><mi>E</mi><mo stretchy="false">(</mo><mi>f</mi><mo stretchy="false">)</mo></mrow></math>
-      </div>
-
-      <h4 id="define-inclusion">Step 4：定义 inclusion</h4>
-      <div class="equation">
-        <math display="block"><mrow><msub><mi>i</mi><mi>X</mi></msub><mo stretchy="false">(</mo><mi>x</mi><mo stretchy="false">)</mo><mo>=</mo><mo stretchy="false">(</mo><mn>1</mn><mo>,</mo><mi>x</mi><mo stretchy="false">)</mo></mrow></math>
-      </div>
-      <p>这样把 <math><mi>X</mi></math> 嵌入 <math><mi>E</mi><mi>X</mi></math>，并与新加的 base point 区分开。</p>
-
-      <h4 id="define-extension">Step 5：定义 extension</h4>
-      <p>对于 <math><mi>f</mi><mo>:</mo><mi>X</mi><mo>→</mo><mi>U</mi><mo stretchy="false">(</mo><mi>Y</mi><mo>,</mo><msub><mi>y</mi><mn>0</mn></msub><mo stretchy="false">)</mo></math>，定义：</p>
-      <div class="equation">
-        <math display="block"><mrow><mover><mi>f</mi><mo>¯</mo></mover><mo stretchy="false">(</mo><mn>1</mn><mo>,</mo><mi>x</mi><mo stretchy="false">)</mo><mo>=</mo><mi>f</mi><mo stretchy="false">(</mo><mi>x</mi><mo stretchy="false">)</mo></mrow></math>
-      </div>
-      <div class="equation">
-        <math display="block"><mrow><mover><mi>f</mi><mo>¯</mo></mover><mo stretchy="false">(</mo><mn>0</mn><mo stretchy="false">)</mo><mo>=</mo><msub><mi>y</mi><mn>0</mn></msub></mrow></math>
-      </div>
-      <p>新加的 base point 被送到 <math><msub><mi>y</mi><mn>0</mn></msub></math>，所以 <math><mover><mi>f</mi><mo>¯</mo></mover></math> 是 based map。</p>
-
-      <h4 id="extension-commutes">Step 6：说明 diagram commute</h4>
-      <p>对任意 <math><mi>x</mi><mo>∈</mo><mi>X</mi></math>：</p>
-      <div class="equation">
-        <math display="block"><mrow><mi>U</mi><mo stretchy="false">(</mo><mover><mi>f</mi><mo>¯</mo></mover><mo stretchy="false">)</mo><mo stretchy="false">(</mo><msub><mi>i</mi><mi>X</mi></msub><mo stretchy="false">(</mo><mi>x</mi><mo stretchy="false">)</mo><mo stretchy="false">)</mo><mo>=</mo><mover><mi>f</mi><mo>¯</mo></mover><mo stretchy="false">(</mo><mn>1</mn><mo>,</mo><mi>x</mi><mo stretchy="false">)</mo><mo>=</mo><mi>f</mi><mo stretchy="false">(</mo><mi>x</mi><mo stretchy="false">)</mo></mrow></math>
-      </div>
-      <p>所以：</p>
-      <div class="equation">
-        <math display="block"><mrow><mi>U</mi><mo stretchy="false">(</mo><mover><mi>f</mi><mo>¯</mo></mover><mo stretchy="false">)</mo><mo>∘</mo><msub><mi>i</mi><mi>X</mi></msub><mo>=</mo><mi>f</mi></mrow></math>
-      </div>
-
-      <h4 id="extension-is-unique">Step 7：说明唯一性</h4>
-      <p>如果还有另一个 based map：</p>
-      <div class="equation">
-        <math display="block"><mrow><mi>g</mi><mo>:</mo><mi>E</mi><mi>X</mi><mo>→</mo><mo stretchy="false">(</mo><mi>Y</mi><mo>,</mo><msub><mi>y</mi><mn>0</mn></msub><mo stretchy="false">)</mo></mrow></math>
-      </div>
-      <p>也满足 <math><mi>U</mi><mo stretchy="false">(</mo><mi>g</mi><mo stretchy="false">)</mo><mo>∘</mo><msub><mi>i</mi><mi>X</mi></msub><mo>=</mo><mi>f</mi></math>，那么：</p>
-      <div class="equation">
-        <math display="block"><mrow><mi>g</mi><mo stretchy="false">(</mo><mn>1</mn><mo>,</mo><mi>x</mi><mo stretchy="false">)</mo><mo>=</mo><mi>f</mi><mo stretchy="false">(</mo><mi>x</mi><mo stretchy="false">)</mo></mrow></math>
-      </div>
-      <p>而且因为 <math><mi>g</mi></math> 是 based map：</p>
-      <div class="equation">
-        <math display="block"><mrow><mi>g</mi><mo stretchy="false">(</mo><mn>0</mn><mo stretchy="false">)</mo><mo>=</mo><msub><mi>y</mi><mn>0</mn></msub></mrow></math>
-      </div>
-      <p>所以 <math><mi>g</mi></math> 在 <math><mi>E</mi><mi>X</mi></math> 的所有元素上都和 <math><mover><mi>f</mi><mo>¯</mo></mover></math> 相同：</p>
-      <div class="equation">
-        <math display="block"><mrow><mi>g</mi><mo>=</mo><mover><mi>f</mi><mo>¯</mo></mover></mrow></math>
-      </div>
-      <p>因此 extension 是 unique 的。</p>
-      <h4 id="base-point-conclusion">Step 8：回头看前面的 err</h4>
-      <p>回到前面的例子，取 <math><mi>X</mi><mo>=</mo><msub><mi>ℚ</mi><mrow><mo>≥</mo><mn>0</mn></mrow></msub></math>，把包装后的 <math><mo stretchy="false">(</mo><mn>1</mn><mo>,</mo><mi>x</mi><mo stretchy="false">)</mo></math> 记回 <math><mi>x</mi></math>，把新加的 base point 记作 err，就得到 <math><mo stretchy="false">(</mo><mi>D</mi><mo>,</mo><mi mathvariant="normal">err</mi><mo stretchy="false">)</mo></math>。</p>
-      <p>所以给一个 set 添加一个新的 base point，并不是临时处理 err 的小技巧，而是一个满足 unique mapping property 的统一 construction。前面的 <math><mo stretchy="false">(</mo><mi>D</mi><mo>,</mo><mi mathvariant="normal">err</mi><mo stretchy="false">)</mo></math> 只是这个 construction 的一个具体例子。</p>
+      <p>核心就是：X 加一个新 base point 得到 EX，普通 map 随之唯一扩展成 based map。前面的 err 就可以看成这个新点。</p>
     </section>
 
     <section class="post-section">
@@ -628,15 +592,36 @@
 
     <section class="post-section">
       <h4 id="lemma-3-3">8.2 Lemma 3.3</h4>
-      <p>定义 substitution 还不够。要把它当作 category composition，就必须检查对应的 laws。对于所有 contexts c₁、c₂、c₃：</p>
+      <p>对任意 c₁、c₂、c₃：</p>
       <div class="equation">
         <math display="block"><mrow><msub><mi>c</mi><mrow><mn>1</mn></mrow></msub><mo stretchy="false">[</mo><msub><mi>c</mi><mrow><mn>2</mn></mrow></msub><mo stretchy="false">[</mo><msub><mi>c</mi><mrow><mn>3</mn></mrow></msub><mo stretchy="false">]</mo><mo stretchy="false">]</mo><mo>=</mo><msub><mi>c</mi><mrow><mn>1</mn></mrow></msub><mo stretchy="false">[</mo><msub><mi>c</mi><mrow><mn>2</mn></mrow></msub><mo stretchy="false">]</mo><mo stretchy="false">[</mo><msub><mi>c</mi><mrow><mn>3</mn></mrow></msub><mo stretchy="false">]</mo></mrow></math>
       </div>
       <div class="equation">
         <math display="block"><mrow><msub><mi>c</mi><mrow><mn>1</mn></mrow></msub><mo stretchy="false">[</mo><mo>−</mo><mo stretchy="false">]</mo><mo>=</mo><msub><mi>c</mi><mrow><mn>1</mn></mrow></msub><mo>=</mo><mo>−</mo><mo stretchy="false">[</mo><msub><mi>c</mi><mrow><mn>1</mn></mrow></msub><mo stretchy="false">]</mo></mrow></math>
       </div>
-      <p>第一条是 associativity；第二条说 hole 不改变 context，因此可以扮演 identity。前面 category 要求的两种 structure，在这里分别由 substitution 和 hole 提供。</p>
-      <p>Proof idea：Associativity 对 c₁ 做 structural induction。Base case 是 c₁ = −： <math><mrow><mo>−</mo><mo stretchy="false">[</mo><msub><mi>c</mi><mrow><mn>2</mn></mrow></msub><mo stretchy="false">[</mo><msub><mi>c</mi><mrow><mn>3</mn></mrow></msub><mo stretchy="false">]</mo><mo stretchy="false">]</mo><mo>=</mo><msub><mi>c</mi><mrow><mn>2</mn></mrow></msub><mo stretchy="false">[</mo><msub><mi>c</mi><mrow><mn>3</mn></mrow></msub><mo stretchy="false">]</mo><mo>=</mo><mo>−</mo><mo stretchy="false">[</mo><msub><mi>c</mi><mrow><mn>2</mn></mrow></msub><mo stretchy="false">]</mo><mo stretchy="false">[</mo><msub><mi>c</mi><mrow><mn>3</mn></mrow></msub><mo stretchy="false">]</mo></mrow></math> Induction step 分为 <math><mrow><msub><mi>c</mi><mrow><mn>1</mn></mrow></msub><mo>□</mo><mi>e</mi></mrow></math>、<math><mrow><mi>e</mi><mo>□</mo><msub><mi>c</mi><mrow><mn>1</mn></mrow></msub></mrow></math>、<math><mrow><msub><mi>c</mi><mrow><mn>1</mn></mrow></msub><mo>□</mo><mi>c₁′</mi></mrow></math> 三类。每一类展开 substitution definition，再对子 context 用 induction hypothesis。 Identity law 同样由 structural induction 得到。这个 proof 保证 substitution 确实满足 category composition 所需的 laws。</p>
+      <p>先把 c₃ 填进 c₂ 再填进 c₁，与先填 c₂ 再填 c₃ 相同；hole 则不改变填入结果。</p>
+      <p>对 c₁ 做 structural induction：grammar 有 hole 和三种递归构造。</p>
+      <p><strong>Base case：</strong>c₁ = −。Hole 直接返回填入内容：</p>
+      <div class="equation">
+        <math display="block"><mrow><mo>−</mo><mo stretchy="false">[</mo><msub><mi>c</mi><mrow><mn>2</mn></mrow></msub><mo stretchy="false">[</mo><msub><mi>c</mi><mrow><mn>3</mn></mrow></msub><mo stretchy="false">]</mo><mo stretchy="false">]</mo><mo>=</mo><msub><mi>c</mi><mrow><mn>2</mn></mrow></msub><mo stretchy="false">[</mo><msub><mi>c</mi><mrow><mn>3</mn></mrow></msub><mo stretchy="false">]</mo><mo>=</mo><mo stretchy="false">(</mo><mo>−</mo><mo stretchy="false">[</mo><msub><mi>c</mi><mrow><mn>2</mn></mrow></msub><mo stretchy="false">]</mo><mo stretchy="false">)</mo><mo stretchy="false">[</mo><msub><mi>c</mi><mrow><mn>3</mn></mrow></msub><mo stretchy="false">]</mo></mrow></math>
+      </div>
+      <p><strong>Induction hypothesis (IH)：</strong>下文 c₁、c₁′ 指更小的子-context，假设对任意 c₂、c₃：</p>
+      <div class="equation">
+        <math display="block"><mrow><mtable columnalign="left" rowspacing="0.25em"><mtr><mtd><msub><mi>c</mi><mrow><mn>1</mn></mrow></msub><mo stretchy="false">[</mo><msub><mi>c</mi><mrow><mn>2</mn></mrow></msub><mo stretchy="false">[</mo><msub><mi>c</mi><mrow><mn>3</mn></mrow></msub><mo stretchy="false">]</mo><mo stretchy="false">]</mo><mo>=</mo><msub><mi>c</mi><mrow><mn>1</mn></mrow></msub><mo stretchy="false">[</mo><msub><mi>c</mi><mrow><mn>2</mn></mrow></msub><mo stretchy="false">]</mo><mo stretchy="false">[</mo><msub><mi>c</mi><mrow><mn>3</mn></mrow></msub><mo stretchy="false">]</mo></mtd></mtr><mtr><mtd><msubsup><mi>c</mi><mn>1</mn><mo>′</mo></msubsup><mo stretchy="false">[</mo><msub><mi>c</mi><mrow><mn>2</mn></mrow></msub><mo stretchy="false">[</mo><msub><mi>c</mi><mrow><mn>3</mn></mrow></msub><mo stretchy="false">]</mo><mo stretchy="false">]</mo><mo>=</mo><msubsup><mi>c</mi><mn>1</mn><mo>′</mo></msubsup><mo stretchy="false">[</mo><msub><mi>c</mi><mrow><mn>2</mn></mrow></msub><mo stretchy="false">]</mo><mo stretchy="false">[</mo><msub><mi>c</mi><mrow><mn>3</mn></mrow></msub><mo stretchy="false">]</mo></mtd></mtr></mtable></mrow></math>
+      </div>
+      <p><strong>Induction cases</strong>（□ 为运算符）：</p>
+      <p><strong>Case 1：</strong><math><mrow><msub><mi>c</mi><mrow><mn>1</mn></mrow></msub><mo>□</mo><mi>e</mi></mrow></math></p>
+      <div class="equation">
+        <math display="block"><mrow><mtable columnalign="left" rowspacing="0.25em"><mtr><mtd><mo stretchy="false">(</mo><msub><mi>c</mi><mrow><mn>1</mn></mrow></msub><mo>□</mo><mi>e</mi><mo stretchy="false">)</mo><mo stretchy="false">[</mo><msub><mi>c</mi><mrow><mn>2</mn></mrow></msub><mo stretchy="false">[</mo><msub><mi>c</mi><mrow><mn>3</mn></mrow></msub><mo stretchy="false">]</mo><mo stretchy="false">]</mo></mtd></mtr><mtr><mtd><mo>=</mo><msub><mi>c</mi><mrow><mn>1</mn></mrow></msub><mo stretchy="false">[</mo><msub><mi>c</mi><mrow><mn>2</mn></mrow></msub><mo stretchy="false">[</mo><msub><mi>c</mi><mrow><mn>3</mn></mrow></msub><mo stretchy="false">]</mo><mo stretchy="false">]</mo><mo>□</mo><mi>e</mi></mtd></mtr><mtr><mtd><mo>=</mo><msub><mi>c</mi><mrow><mn>1</mn></mrow></msub><mo stretchy="false">[</mo><msub><mi>c</mi><mrow><mn>2</mn></mrow></msub><mo stretchy="false">]</mo><mo stretchy="false">[</mo><msub><mi>c</mi><mrow><mn>3</mn></mrow></msub><mo stretchy="false">]</mo><mo>□</mo><mi>e</mi><mspace width="1em"/><mtext>by IH</mtext></mtd></mtr><mtr><mtd><mo>=</mo><mo stretchy="false">(</mo><msub><mi>c</mi><mrow><mn>1</mn></mrow></msub><mo stretchy="false">[</mo><msub><mi>c</mi><mrow><mn>2</mn></mrow></msub><mo stretchy="false">]</mo><mo>□</mo><mi>e</mi><mo stretchy="false">)</mo><mo stretchy="false">[</mo><msub><mi>c</mi><mrow><mn>3</mn></mrow></msub><mo stretchy="false">]</mo></mtd></mtr><mtr><mtd><mo>=</mo><mo stretchy="false">(</mo><msub><mi>c</mi><mrow><mn>1</mn></mrow></msub><mo>□</mo><mi>e</mi><mo stretchy="false">)</mo><mo stretchy="false">[</mo><msub><mi>c</mi><mrow><mn>2</mn></mrow></msub><mo stretchy="false">]</mo><mo stretchy="false">[</mo><msub><mi>c</mi><mrow><mn>3</mn></mrow></msub><mo stretchy="false">]</mo></mtd></mtr></mtable></mrow></math>
+      </div>
+      <p>按定义下推到子-context，用 IH，再按定义合回。</p>
+      <p><strong>Case 2：</strong><math><mrow><mi>e</mi><mo>□</mo><msub><mi>c</mi><mrow><mn>1</mn></mrow></msub></mrow></math>，同理在右侧用 IH。</p>
+      <p><strong>Case 3：</strong><math><mrow><msub><mi>c</mi><mrow><mn>1</mn></mrow></msub><mo>□</mo><msubsup><mi>c</mi><mn>1</mn><mo>′</mo></msubsup></mrow></math>，两侧各用 IH，再合回：</p>
+      <div class="equation">
+        <math display="block"><mrow><mtable columnalign="left" rowspacing="0.25em"><mtr><mtd><msub><mi>c</mi><mrow><mn>1</mn></mrow></msub><mo stretchy="false">[</mo><msub><mi>c</mi><mrow><mn>2</mn></mrow></msub><mo stretchy="false">[</mo><msub><mi>c</mi><mrow><mn>3</mn></mrow></msub><mo stretchy="false">]</mo><mo stretchy="false">]</mo><mo>□</mo><msubsup><mi>c</mi><mn>1</mn><mo>′</mo></msubsup><mo stretchy="false">[</mo><msub><mi>c</mi><mrow><mn>2</mn></mrow></msub><mo stretchy="false">[</mo><msub><mi>c</mi><mrow><mn>3</mn></mrow></msub><mo stretchy="false">]</mo><mo stretchy="false">]</mo></mtd></mtr><mtr><mtd><mo>=</mo><msub><mi>c</mi><mrow><mn>1</mn></mrow></msub><mo stretchy="false">[</mo><msub><mi>c</mi><mrow><mn>2</mn></mrow></msub><mo stretchy="false">]</mo><mo stretchy="false">[</mo><msub><mi>c</mi><mrow><mn>3</mn></mrow></msub><mo stretchy="false">]</mo><mo>□</mo><msubsup><mi>c</mi><mn>1</mn><mo>′</mo></msubsup><mo stretchy="false">[</mo><msub><mi>c</mi><mrow><mn>2</mn></mrow></msub><mo stretchy="false">]</mo><mo stretchy="false">[</mo><msub><mi>c</mi><mrow><mn>3</mn></mrow></msub><mo stretchy="false">]</mo></mtd></mtr><mtr><mtd><mo>=</mo><mo stretchy="false">(</mo><msub><mi>c</mi><mrow><mn>1</mn></mrow></msub><mo>□</mo><msubsup><mi>c</mi><mn>1</mn><mo>′</mo></msubsup><mo stretchy="false">)</mo><mo stretchy="false">[</mo><msub><mi>c</mi><mrow><mn>2</mn></mrow></msub><mo stretchy="false">]</mo><mo stretchy="false">[</mo><msub><mi>c</mi><mrow><mn>3</mn></mrow></msub><mo stretchy="false">]</mo></mtd></mtr></mtable></mrow></math>
+      </div>
+      <p>四类齐全，结合律得证。单位律同样作结构归纳。</p>
+      <p>二者正是 category composition 所需的两条 laws。</p>
     </section>
 
     <section class="post-section">
@@ -939,6 +924,23 @@
       </div>
       <p>Naturality square 不 commute。问题不是单独的 <math><mrow><msub><mi>α</mi><mrow><mi>X</mi></mrow></msub></mrow></math> 不合法，而是“从集合中选一个 element”这个 choice 不能 uniform 地 respect arbitrary functions f。因此这组 maps 不是 natural transformation。</p>
     </section>
+    <figure class="hierarchy-summary" aria-label="Objects 之间有 morphisms，Categories 之间有 functors，parallel Functors 之间有 natural transformations。">
+      <div class="hierarchy-row">
+        <span class="hierarchy-node">Objects</span>
+        <span class="hierarchy-arrow"><span class="hierarchy-label">morphisms</span></span>
+        <span class="hierarchy-node">Objects</span>
+      </div>
+      <div class="hierarchy-row">
+        <span class="hierarchy-node">Categories</span>
+        <span class="hierarchy-arrow"><span class="hierarchy-label">functors</span></span>
+        <span class="hierarchy-node">Categories</span>
+      </div>
+      <div class="hierarchy-row">
+        <span class="hierarchy-node">Functors</span>
+        <span class="hierarchy-arrow"><span class="hierarchy-label">natural transformations</span></span>
+        <span class="hierarchy-node">Functors</span>
+      </div>
+    </figure>
     <p style="font-size: 0.875em;">Material: Henning Basold, <em>Two Voice Semantics</em> · <a href="https://gitlab.com/hbasold/two-voice-semantics">GitLab</a></p>
   </article>
 
