@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Quantum Circuits as Weighted Boolean Formulas: From Simulation to Synthesis | 泽华Zehua</title>
+<link href="../style.css" rel="stylesheet"/>
+<style>
+    html { scroll-behavior: smooth; }
+    article { line-height: 1.65; }
+    .post-title, .post-section h3, .post-section h4 { scroll-margin-top: 20px; }
+    .post-toc { margin: 28px 0; }
+    .post-toc h3 { font-size: 1em; margin-bottom: 8px; }
+    .post-toc ul { padding-left: 1.25em; margin: 0; list-style: none; }
+    .post-toc > ul { padding-left: 0; }
+    .post-toc a, .post-toc a:visited { color: #0000ee; }
+    .post-toc a:focus-visible { outline: 2px solid currentColor; outline-offset: 3px; }
+    .equation { margin: 16px 0; overflow-x: auto; overflow-y: hidden; padding: 6px 0; }
+    math { font-family: "Cambria Math", "STIX Two Math", math; font-size: 1.05em; line-height: normal; }
+    .equation math { margin: 0 auto; }
+    .post-section h4 { font-size: 1em; margin: 24px 0 8px; }
+    .post-section ul { padding-left: 1.75em; }
+    .table-scroll { overflow-x: auto; margin: 20px 0; }
+    table { border-collapse: collapse; width: 100%; font-size: 0.9em; }
+    caption { text-align: left; margin-bottom: 8px; }
+    th, td { border-bottom: 1px solid #aebba0; padding: 8px; text-align: left; vertical-align: top; }
+    thead { border-top: 1px solid #aebba0; }
+    @media (max-width: 360px) { .equation math { font-size: 0.95em; } }
+    @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+  </style></head>
+<body>
+<main>
+<article><!-- Blog 2 source. Blog 1 is a static HTML article with no front matter.
+     Preserve its h2/h3/h4 hierarchy, explicit TOC, and Material references.
+     The companion page is quantum-circuits-as-weighted-boolean-formulas.html; its formulas use native MathML.
+     Sources: the supplied simulation PDF (arXiv:2403.07197v1) and
+     Quokka-Sharp.pdf (arXiv:2508.00416v2). Section numbers below refer to these versions. -->
+<h2 class="post-title" id="article-title">Quantum Circuits as Weighted Boolean Formulas: From Simulation to Synthesis</h2>
+<nav aria-labelledby="toc-title" class="post-toc">
+<h3 id="toc-title">Table of Contents</h3>
+<ul>
+<li><a href="#motivation">1. Motivation：为什么把 quantum circuit 写成 logic？</a></li>
+<li><a href="#weighted-states">2. 从 Basis State 到 Weighted Model Counting</a>
+<ul>
+<li><a href="#basis-assignments">2.1 Boolean assignment 能表示什么？</a></li>
+<li><a href="#wmc">2.2 为什么需要 WMC？</a></li>
+</ul>
+</li>
+<li><a href="#gate-encoding">3. Gate：一个 Weighted Transition Relation</a></li>
+<li><a href="#circuit-paths">4. Circuit：把局部 Transitions 接起来</a>
+<ul>
+<li><a href="#composition">4.1 Circuit encoding 和 composition</a></li>
+<li><a href="#interference">4.2 Example：两个 Hadamard gates</a></li>
+</ul>
+</li>
+<li><a href="#cb-pb">5. Computational Basis 和 Pauli Basis</a>
+<ul>
+<li><a href="#density-matrix">5.1 从 State Vector 到 Density Matrix</a></li>
+<li><a href="#stabilizers">5.2 Stabilizers 和 Generalized Stabilizers</a></li>
+</ul>
+</li>
+<li><a href="#simulation">6. Strong Simulation：把 Measurement 也编码进去</a>
+<ul>
+<li><a href="#measurement">6.1 Measurement 的 constraints 和 normalization</a></li>
+<li><a href="#simulation-implementation">6.2 从 Reduction 到 Simulator</a></li>
+</ul>
+</li>
+<li><a href="#verification">7. 从 Simulation 到 Verification</a></li>
+<li><a href="#equivalence">8. Equivalence：比较两个 Circuits</a>
+<ul>
+<li><a href="#global-phase">8.1 Global phase 和 approximate equivalence</a></li>
+<li><a href="#cyclic">8.2 Cyclic encoding</a></li>
+<li><a href="#fidelity">8.3 从 Cyclic Count 到 Fidelity</a></li>
+</ul>
+</li>
+<li><a href="#gate-selection">9. Synthesis：把 Circuit 本身变成 Boolean Choices</a></li>
+<li><a href="#maxwmc">10. 为什么是 Maximum Weighted Model Counting？</a></li>
+<li><a href="#depth-optimality">11. Exact、Approximate 和 Depth-optimal Synthesis</a></li>
+<li><a href="#representation-limits">12. 同一个 Representation，以及它的限制</a></li>
+</ul>
+</nav>
+<section class="post-section"><h3 id="motivation">1. Motivation：为什么把 quantum circuit 写成 logic？</h3>
+<p>一个 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>n</mi><annotation encoding="application/x-tex">n</annotation></semantics></math>-qubit pure state 可以写成：</p>
+<div class="equation"><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo form="prefix" stretchy="false">|</mo><mi>ψ</mi><mo form="postfix" stretchy="false">⟩</mo><mo>=</mo><munder><mo>∑</mo><mrow><mi>b</mi><mo>∈</mo><mo form="prefix" stretchy="false">{</mo><mn>0</mn><mo>,</mo><mn>1</mn><msup><mo form="postfix" stretchy="false">}</mo><mi>n</mi></msup></mrow></munder><msub><mi>α</mi><mi>b</mi></msub><mo form="prefix" stretchy="false">|</mo><mi>b</mi><mo form="postfix" stretchy="false">⟩</mo><mo>,</mo><mspace width="2.0em"></mspace><munder><mo>∑</mo><mi>b</mi></munder><mo form="prefix" stretchy="false">|</mo><msub><mi>α</mi><mi>b</mi></msub><msup><mo form="prefix" stretchy="false">|</mo><mn>2</mn></msup><mo>=</mo><mn>1</mn><mi>.</mi></mrow><annotation encoding="application/x-tex">
+|\psi\rangle=\sum_{b\in\{0,1\}^n}\alpha_b|b\rangle,
+\qquad \sum_b|\alpha_b|^2=1.
+</annotation></semantics></math></div>
+<p>这里 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>b</mi><annotation encoding="application/x-tex">b</annotation></semantics></math> 是一个长度为 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>n</mi><annotation encoding="application/x-tex">n</annotation></semantics></math> 的 bit string，<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>α</mi><mi>b</mi></msub><annotation encoding="application/x-tex">\alpha_b</annotation></semantics></math> 是对应的 amplitude。直接存储这个 state vector，一般需要 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msup><mn>2</mn><mi>n</mi></msup><annotation encoding="application/x-tex">2^n</annotation></semantics></math> 个 complex numbers。Circuit 本身可能只是一个不长的 gate sequence，但它作用的空间已经很大了。</p>
+<p>Classical simulation 要从这个紧凑的 circuit description 算出 quantum behaviour。Weak simulation 是按测量分布产生 outcomes；strong simulation 则计算指定的 amplitude 或 measurement probability。这里关注后者。</p>
+<p><a href="#material-simulation">Simulation paper</a> 的 Introduction 从 strong simulation 与 #P counting problems 的联系出发，提出了一个具体问题：能不能把 quantum circuit 的计算交给 weighted model counter？Complexity 上有关联还不够，实际使用时还需要一个尺寸可控、能够保留 quantum semantics 的 encoding。</p>
+<p>先把问题拆开：basis component 是哪一个，以及它贡献了多少。这两件事分别交给 Boolean constraints 和 numerical weights。后面再看同样的表示怎样用于 simulation、equivalence checking，最后用于 synthesis。</p>
+</section><section class="post-section"><h3 id="weighted-states">2. 从 Basis State 到 Weighted Model Counting</h3>
+</section><section class="post-section"><h4 id="basis-assignments">2.1 Boolean assignment 能表示什么？</h4>
+<p>从最直接的 computational basis 开始。一个 qubit 的 basis state 只需要一个 Boolean variable：</p>
+<div class="equation"><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo form="prefix" stretchy="false">|</mo><mn>0</mn><mo form="postfix" stretchy="false">⟩</mo><mo>↔</mo><mi>q</mi><mo>=</mo><mn>0</mn><mo>↔</mo><mo>¬</mo><mi>q</mi><mo>,</mo><mspace width="2.0em"></mspace><mo form="prefix" stretchy="false">|</mo><mn>1</mn><mo form="postfix" stretchy="false">⟩</mo><mo>↔</mo><mi>q</mi><mo>=</mo><mn>1</mn><mo>↔</mo><mi>q</mi><mi>.</mi></mrow><annotation encoding="application/x-tex">
+|0\rangle\longleftrightarrow q=0\longleftrightarrow\neg q,
+\qquad
+|1\rangle\longleftrightarrow q=1\longleftrightarrow q.
+</annotation></semantics></math></div>
+<p>两个 qubits 同理。例如按从左到右的 qubit 顺序：</p>
+<div class="equation"><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo form="prefix" stretchy="false">|</mo><mn>10</mn><mo form="postfix" stretchy="false">⟩</mo><mo>↔</mo><mo form="prefix" stretchy="false">(</mo><msub><mi>q</mi><mn>0</mn></msub><mo>,</mo><msub><mi>q</mi><mn>1</mn></msub><mo form="postfix" stretchy="false">)</mo><mo>=</mo><mo form="prefix" stretchy="false">(</mo><mn>1</mn><mo>,</mo><mn>0</mn><mo form="postfix" stretchy="false">)</mo><mo>↔</mo><msub><mi>q</mi><mn>0</mn></msub><mo>∧</mo><mo>¬</mo><msub><mi>q</mi><mn>1</mn></msub><mi>.</mi></mrow><annotation encoding="application/x-tex">
+|10\rangle\longleftrightarrow(q_0,q_1)=(1,0)
+\longleftrightarrow q_0\land\neg q_1.
+</annotation></semantics></math></div>
+<p>但 Boolean assignment 只告诉我们是哪一个 basis component。考虑：</p>
+<div class="equation"><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo form="prefix" stretchy="false">|</mo><mi>+</mi><mo form="postfix" stretchy="false">⟩</mo><mo>=</mo><mfrac><mrow><mo form="prefix" stretchy="false">|</mo><mn>0</mn><mo form="postfix" stretchy="false">⟩</mo><mo>+</mo><mo form="prefix" stretchy="false">|</mo><mn>1</mn><mo form="postfix" stretchy="false">⟩</mo></mrow><msqrt><mn>2</mn></msqrt></mfrac><mo>,</mo><mspace width="2.0em"></mspace><mo form="prefix" stretchy="false">|</mo><mi>−</mi><mo form="postfix" stretchy="false">⟩</mo><mo>=</mo><mfrac><mrow><mo form="prefix" stretchy="false">|</mo><mn>0</mn><mo form="postfix" stretchy="false">⟩</mo><mo>−</mo><mo form="prefix" stretchy="false">|</mo><mn>1</mn><mo form="postfix" stretchy="false">⟩</mo></mrow><msqrt><mn>2</mn></msqrt></mfrac><mi>.</mi></mrow><annotation encoding="application/x-tex">
+|+\rangle=\frac{|0\rangle+|1\rangle}{\sqrt2},
+\qquad
+|-\rangle=\frac{|0\rangle-|1\rangle}{\sqrt2}.
+</annotation></semantics></math></div>
+<p>两者都包含 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo form="prefix" stretchy="false">|</mo><mn>0</mn><mo form="postfix" stretchy="false">⟩</mo></mrow><annotation encoding="application/x-tex">|0\rangle</annotation></semantics></math> 和 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo form="prefix" stretchy="false">|</mo><mn>1</mn><mo form="postfix" stretchy="false">⟩</mo></mrow><annotation encoding="application/x-tex">|1\rangle</annotation></semantics></math>。只保留这两个 assignments，就丢掉了它们的区别。还需要保留 amplitude，尤其是第二个 component 的符号。</p>
+<p>因此，Boolean structure 表示允许哪些 components 或 transitions；weights 表示这些 components 对所求 quantum quantity 的数值贡献。一般的 CB amplitudes 可以是 complex，所以不只是正负号的问题。这是 <a href="#material-synthesis">synthesis paper §2.3</a> 中 computational basis encoding 的出发点。</p>
+</section><section class="post-section"><h4 id="wmc">2.2 为什么需要 WMC？</h4>
+<p>普通 #SAT 对每个 satisfying assignment 都加 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mn>1</mn><annotation encoding="application/x-tex">1</annotation></semantics></math>：</p>
+<div class="equation"><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>#</mi><mrow><mi mathvariant="normal">SAT</mi><mo>⁡</mo></mrow><mo form="prefix" stretchy="false">(</mo><mi>F</mi><mo form="postfix" stretchy="false">)</mo><mo>=</mo><munder><mo>∑</mo><mrow><mi>ω</mi><mo>⊨</mo><mi>F</mi></mrow></munder><mn>1</mn><mi>.</mi></mrow><annotation encoding="application/x-tex">
+\#\operatorname{SAT}(F)=\sum_{\omega\models F}1.
+</annotation></semantics></math></div>
+<p>Weighted Model Counting 则给每个 literal 一个 weight。把完整 assignment <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>ω</mi><annotation encoding="application/x-tex">\omega</annotation></semantics></math> 看成它取真的 literals 的集合，定义：</p>
+<div class="equation"><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>W</mi><mo form="prefix" stretchy="false">(</mo><mi>ω</mi><mo form="postfix" stretchy="false">)</mo><mo>=</mo><munder><mo>∏</mo><mrow><mi>ℓ</mi><mo>∈</mo><mi>ω</mi></mrow></munder><mi>w</mi><mo form="prefix" stretchy="false">(</mo><mi>ℓ</mi><mo form="postfix" stretchy="false">)</mo><mo>,</mo><mspace width="2.0em"></mspace><msub><mrow><mi mathvariant="normal">WMC</mi><mo>⁡</mo></mrow><mi>w</mi></msub><mo form="prefix" stretchy="false">(</mo><mi>F</mi><mo form="postfix" stretchy="false">)</mo><mo>=</mo><munder><mo>∑</mo><mrow><mi>ω</mi><mo>⊨</mo><mi>F</mi></mrow></munder><mi>W</mi><mo form="prefix" stretchy="false">(</mo><mi>ω</mi><mo form="postfix" stretchy="false">)</mo><mi>.</mi></mrow><annotation encoding="application/x-tex">
+W(\omega)=\prod_{\ell\in\omega}w(\ell),
+\qquad
+\operatorname{WMC}_w(F)=\sum_{\omega\models F}W(\omega).
+</annotation></semantics></math></div>
+<p>也就是先在一个 assignment 内做乘法，再在不同 assignments 之间做加法。没有特殊说明时，<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>w</mi><mo form="prefix" stretchy="false">(</mo><mi>v</mi><mo form="postfix" stretchy="false">)</mo><mo>=</mo><mi>w</mi><mo form="prefix" stretchy="false">(</mo><mo>¬</mo><mi>v</mi><mo form="postfix" stretchy="false">)</mo><mo>=</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">w(v)=w(\neg v)=1</annotation></semantics></math>；这表示这个 variable 本身不改变数值贡献，而不是给它一个均匀概率分布。（<a href="#material-simulation">Simulation paper §2.3</a>；<a href="#material-synthesis">synthesis paper §2.2</a>。）</p>
+<p>Quantum contributions 不会每次都等于 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mn>1</mn><annotation encoding="application/x-tex">1</annotation></semantics></math>。有些 contribution 可以相消，例如：</p>
+<div class="equation"><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mfrac><mn>1</mn><mn>2</mn></mfrac><mo>+</mo><mrow><mo form="prefix" stretchy="true">(</mo><mi>−</mi><mfrac><mn>1</mn><mn>2</mn></mfrac><mo form="postfix" stretchy="true">)</mo></mrow><mo>=</mo><mn>0</mn><mi>.</mi></mrow><annotation encoding="application/x-tex">
+\frac12+\left(-\frac12\right)=0.
+</annotation></semantics></math></div>
+<p>如果只数 satisfying assignments，这里会得到 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mn>2</mn><annotation encoding="application/x-tex">2</annotation></semantics></math>；如果保留 weights，就可以得到 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mn>0</mn><annotation encoding="application/x-tex">0</annotation></semantics></math>。后面两个 Hadamard gates 的例子会让这个 cancellation 具体发生。</p>
+<p>这里加起来的是 amplitudes 或其他代数贡献。Physical measurement probability 仍然是非负实数。WMC 中允许 negative 或 complex weights，并不意味着 quantum probability 可以为负或为 complex。</p>
+</section><section class="post-section"><h3 id="gate-encoding">3. Gate：一个 Weighted Transition Relation</h3>
+<p>一个 gate 的 matrix element 描述 input basis state 到 output basis state 的 contribution。因此可以把 gate 写成一个 weighted Boolean transition relation：</p>
+<div class="equation"><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>F</mi><mi>G</mi></msub><mo form="prefix" stretchy="false">(</mo><mi>𝐪</mi><mo>,</mo><msup><mi>𝐪</mi><mo>′</mo></msup><mo>,</mo><mi>𝐮</mi><mo form="postfix" stretchy="false">)</mo><mi>.</mi></mrow><annotation encoding="application/x-tex">
+F_G(\mathbf q,\mathbf q',\mathbf u).
+</annotation></semantics></math></div>
+<p><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>𝐪</mi><annotation encoding="application/x-tex">\mathbf q</annotation></semantics></math> 表示 gate 前的 basis label，<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msup><mi>𝐪</mi><mo>′</mo></msup><annotation encoding="application/x-tex">\mathbf q'</annotation></semantics></math> 表示 gate 后的 label；<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>𝐮</mi><annotation encoding="application/x-tex">\mathbf u</annotation></semantics></math> 是用于挂接 weights 的 auxiliary variables。这里的单个 label 并不是整个 superposition，整个 state 要由许多 weighted assignments 一起表示。</p>
+<p>例如 Hadamard gate：</p>
+<div class="equation"><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>H</mi><mo>=</mo><mfrac><mn>1</mn><msqrt><mn>2</mn></msqrt></mfrac><mrow><mo form="prefix" stretchy="true">(</mo><mtable><mtr><mtd columnalign="center" style="text-align: center"><mn>1</mn></mtd><mtd columnalign="center" style="text-align: center"><mn>1</mn></mtd></mtr><mtr><mtd columnalign="center" style="text-align: center"><mn>1</mn></mtd><mtd columnalign="center" style="text-align: center"><mi>−</mi><mn>1</mn></mtd></mtr></mtable><mo form="postfix" stretchy="true">)</mo></mrow><mi>.</mi></mrow><annotation encoding="application/x-tex">
+H=\frac1{\sqrt2}
+\begin{pmatrix}1&amp;1\\1&amp;-1\end{pmatrix}.
+</annotation></semantics></math></div>
+<p>按 column 为 input、row 为 output，可以直接读出：</p>
+<div aria-label="Hadamard gate transitions" class="table-scroll" role="region" tabindex="0"><table>
+<thead>
+<tr>
+<th scope="col">Input</th>
+<th scope="col">Output</th>
+<th scope="col">Transition amplitude</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mn>0</mn><annotation encoding="application/x-tex">0</annotation></semantics></math></td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mn>0</mn><annotation encoding="application/x-tex">0</annotation></semantics></math></td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1</mn><mi>/</mi><msqrt><mn>2</mn></msqrt></mrow><annotation encoding="application/x-tex">1/\sqrt2</annotation></semantics></math></td>
+</tr>
+<tr>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mn>0</mn><annotation encoding="application/x-tex">0</annotation></semantics></math></td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mn>1</mn><annotation encoding="application/x-tex">1</annotation></semantics></math></td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1</mn><mi>/</mi><msqrt><mn>2</mn></msqrt></mrow><annotation encoding="application/x-tex">1/\sqrt2</annotation></semantics></math></td>
+</tr>
+<tr>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mn>1</mn><annotation encoding="application/x-tex">1</annotation></semantics></math></td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mn>0</mn><annotation encoding="application/x-tex">0</annotation></semantics></math></td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1</mn><mi>/</mi><msqrt><mn>2</mn></msqrt></mrow><annotation encoding="application/x-tex">1/\sqrt2</annotation></semantics></math></td>
+</tr>
+<tr>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mn>1</mn><annotation encoding="application/x-tex">1</annotation></semantics></math></td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mn>1</mn><annotation encoding="application/x-tex">1</annotation></semantics></math></td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>−</mi><mn>1</mn><mi>/</mi><msqrt><mn>2</mn></msqrt></mrow><annotation encoding="application/x-tex">-1/\sqrt2</annotation></semantics></math></td>
+</tr>
+</tbody>
+</table></div>
+<p>四种 transitions 都允许，只有最后一种需要负号。<a href="#material-synthesis">Synthesis paper Table 2</a> 用两个 auxiliaries <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>h</mi><mo>,</mo><mi>r</mi></mrow><annotation encoding="application/x-tex">h,r</annotation></semantics></math> 表达这件事：</p>
+<div class="equation"><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>F</mi><mi>H</mi></msub><mo form="prefix" stretchy="false">(</mo><mi>q</mi><mo>,</mo><msup><mi>q</mi><mo>′</mo></msup><mo>,</mo><mi>h</mi><mo>,</mo><mi>r</mi><mo form="postfix" stretchy="false">)</mo><mo>=</mo><mi>h</mi><mo>∧</mo><mo form="prefix" maxsize="120%" minsize="120%" stretchy="true">(</mo><mi>r</mi><mo>↔</mo><mo form="prefix" stretchy="false">(</mo><mi>q</mi><mo>∧</mo><msup><mi>q</mi><mo>′</mo></msup><mo form="postfix" stretchy="false">)</mo><mo form="postfix" maxsize="120%" minsize="120%" stretchy="true">)</mo><mo>,</mo></mrow><annotation encoding="application/x-tex">
+F_H(q,q',h,r)=h\land\bigl(r\leftrightarrow(q\land q')\bigr),
+</annotation></semantics></math></div>
+<div class="equation"><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>w</mi><mo form="prefix" stretchy="false">(</mo><mi>h</mi><mo form="postfix" stretchy="false">)</mo><mo>=</mo><mfrac><mn>1</mn><msqrt><mn>2</mn></msqrt></mfrac><mo>,</mo><mspace width="2.0em"></mspace><mi>w</mi><mo form="prefix" stretchy="false">(</mo><mi>r</mi><mo form="postfix" stretchy="false">)</mo><mo>=</mo><mi>−</mi><mn>1</mn><mo>,</mo><mspace width="2.0em"></mspace><mi>w</mi><mo form="prefix" stretchy="false">(</mo><mo>¬</mo><mi>r</mi><mo form="postfix" stretchy="false">)</mo><mo>=</mo><mn>1</mn><mi>.</mi></mrow><annotation encoding="application/x-tex">
+w(h)=\frac1{\sqrt2},\qquad w(r)=-1,\qquad w(\neg r)=1.
+</annotation></semantics></math></div>
+<p>强制 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>h</mi><annotation encoding="application/x-tex">h</annotation></semantics></math> 为真，就让每个 transition 都乘上 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1</mn><mi>/</mi><msqrt><mn>2</mn></msqrt></mrow><annotation encoding="application/x-tex">1/\sqrt2</annotation></semantics></math>；<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>r</mi><annotation encoding="application/x-tex">r</annotation></semantics></math> 恰好在 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>q</mi><mo>=</mo><msup><mi>q</mi><mo>′</mo></msup><mo>=</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">q=q'=1</annotation></semantics></math> 时为真，再引入一个负号。给定 input/output 后，这两个 auxiliaries 的取值也确定了，不会额外制造重复贡献。</p>
+<p>这就是把 gate matrix 写成 weighted transition relation。其他 gates 也按对应的 matrix elements 编码；PB 中则要编码 gate 对 Pauli operators 的 conjugation。这里先沿着 CB 把整个 circuit 接起来。</p>
+</section><section class="post-section"><h3 id="circuit-paths">4. Circuit：把局部 Transitions 接起来</h3>
+</section><section class="post-section"><h4 id="composition">4.1 Circuit encoding 和 composition</h4>
+<p>设 circuit 按时间顺序执行 gates <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>G</mi><mn>0</mn></msub><mo>,</mo><mi>…</mi><mo>,</mo><msub><mi>G</mi><mrow><mi>m</mi><mo>−</mo><mn>1</mn></mrow></msub></mrow><annotation encoding="application/x-tex">G_0,\ldots,G_{m-1}</annotation></semantics></math>。如果 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>U</mi><mi>t</mi></msub><annotation encoding="application/x-tex">U_t</annotation></semantics></math> 是 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>G</mi><mi>t</mi></msub><annotation encoding="application/x-tex">G_t</annotation></semantics></math> 的 matrix，那么整个 circuit 的 matrix 是：</p>
+<div class="equation"><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>U</mi><mi>C</mi></msub><mo>=</mo><msub><mi>U</mi><mrow><mi>m</mi><mo>−</mo><mn>1</mn></mrow></msub><mi>⋯</mi><msub><mi>U</mi><mn>1</mn></msub><msub><mi>U</mi><mn>0</mn></msub><mi>.</mi></mrow><annotation encoding="application/x-tex">
+U_C=U_{m-1}\cdots U_1U_0.
+</annotation></semantics></math></div>
+<p>右边的 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>U</mi><mn>0</mn></msub><annotation encoding="application/x-tex">U_0</annotation></semantics></math> 最先作用。这里把时间顺序和 matrix multiplication order 分开写，后面比较两个 circuits 时也遵守这个约定。</p>
+<p>为各个时刻引入 basis labels <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msup><mi>𝐪</mi><mn>0</mn></msup><mo>,</mo><mi>…</mi><mo>,</mo><msup><mi>𝐪</mi><mi>m</mi></msup></mrow><annotation encoding="application/x-tex">\mathbf q^0,\ldots,\mathbf q^m</annotation></semantics></math>，相邻 gates 共享连接处的 variables。先定义不固定 input 的 circuit relation：</p>
+<div class="equation"><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>F</mi><mi>C</mi></msub><mo>=</mo><munderover><mo>⋀</mo><mrow><mi>t</mi><mo>=</mo><mn>0</mn></mrow><mrow><mi>m</mi><mo>−</mo><mn>1</mn></mrow></munderover><msub><mi>F</mi><msub><mi>G</mi><mi>t</mi></msub></msub><mo form="prefix" stretchy="false">(</mo><msup><mi>𝐪</mi><mi>t</mi></msup><mo>,</mo><msup><mi>𝐪</mi><mrow><mi>t</mi><mo>+</mo><mn>1</mn></mrow></msup><mo>,</mo><msup><mi>𝐮</mi><mi>t</mi></msup><mo form="postfix" stretchy="false">)</mo><mi>.</mi></mrow><annotation encoding="application/x-tex">
+F_C=\bigwedge_{t=0}^{m-1}
+F_{G_t}(\mathbf q^t,\mathbf q^{t+1},\mathbf u^t).
+</annotation></semantics></math></div>
+<p>如果 input 是 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo form="prefix" stretchy="false">|</mo><msup><mn>0</mn><mi>n</mi></msup><mo form="postfix" stretchy="false">⟩</mo></mrow><annotation encoding="application/x-tex">|0^n\rangle</annotation></semantics></math>，再加上：</p>
+<div class="equation"><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>F</mi><mrow><mi mathvariant="normal">i</mi><mi mathvariant="normal">n</mi><mi mathvariant="normal">i</mi><mi mathvariant="normal">t</mi></mrow></msub><mo form="prefix" stretchy="false">(</mo><msup><mi>𝐪</mi><mn>0</mn></msup><mo form="postfix" stretchy="false">)</mo><mo>=</mo><munderover><mo>⋀</mo><mrow><mi>i</mi><mo>=</mo><mn>0</mn></mrow><mrow><mi>n</mi><mo>−</mo><mn>1</mn></mrow></munderover><mo>¬</mo><msubsup><mi>q</mi><mi>i</mi><mn>0</mn></msubsup><mi>.</mi></mrow><annotation encoding="application/x-tex">
+F_{\mathrm{init}}(\mathbf q^0)=\bigwedge_{i=0}^{n-1}\neg q_i^0.
+</annotation></semantics></math></div>
+<p>这里将 initial condition 与 circuit relation 分开；simulation paper §3.2 的 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>F</mi><mi>C</mi></msub><annotation encoding="application/x-tex">F_C</annotation></semantics></math> 则已经包含 initial condition。分开后，simulation 可以固定 input，后面的 cyclic encoding 可以让 input labels 保持自由。</p>
+<p>一个完整 satisfying assignment 现在描述所有时刻的 basis labels，以及每个 gate 的 auxiliary choices。在 CB 的展开中，它给出一条合法 computational path。它是计算 amplitude 时的一项，不是声称系统在物理上沿着一条 classical trajectory 演化。</p>
+<p>对于路径 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>π</mi><mo>=</mo><mo form="prefix" stretchy="false">(</mo><msup><mi>b</mi><mn>0</mn></msup><mo>,</mo><mi>…</mi><mo>,</mo><msup><mi>b</mi><mi>m</mi></msup><mo form="postfix" stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">\pi=(b^0,\ldots,b^m)</annotation></semantics></math>，其中 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msup><mi>b</mi><mn>0</mn></msup><mo>=</mo><msup><mn>0</mn><mi>n</mi></msup></mrow><annotation encoding="application/x-tex">b^0=0^n</annotation></semantics></math>，它的 contribution 是：</p>
+<div class="equation"><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>a</mi><mo form="prefix" stretchy="false">(</mo><mi>π</mi><mo form="postfix" stretchy="false">)</mo><mo>=</mo><munderover><mo>∏</mo><mrow><mi>t</mi><mo>=</mo><mn>0</mn></mrow><mrow><mi>m</mi><mo>−</mo><mn>1</mn></mrow></munderover><mo form="prefix" stretchy="false">⟨</mo><msup><mi>b</mi><mrow><mi>t</mi><mo>+</mo><mn>1</mn></mrow></msup><mo form="prefix" stretchy="false">|</mo><msub><mi>U</mi><mi>t</mi></msub><mo form="prefix" stretchy="false">|</mo><msup><mi>b</mi><mi>t</mi></msup><mo form="postfix" stretchy="false">⟩</mo><mi>.</mi></mrow><annotation encoding="application/x-tex">
+a(\pi)=\prod_{t=0}^{m-1}\langle b^{t+1}|U_t|b^t\rangle.
+</annotation></semantics></math></div>
+<p>到达输出 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>b</mi><annotation encoding="application/x-tex">b</annotation></semantics></math> 的 amplitude 来自所有以它为终点的 paths：</p>
+<div class="equation"><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>α</mi><mi>b</mi></msub><mo>=</mo><mo form="prefix" stretchy="false">⟨</mo><mi>b</mi><mo form="prefix" stretchy="false">|</mo><msub><mi>U</mi><mi>C</mi></msub><mo form="prefix" stretchy="false">|</mo><msup><mn>0</mn><mi>n</mi></msup><mo form="postfix" stretchy="false">⟩</mo><mo>=</mo><munder><mo>∑</mo><mrow><mi>π</mi><mo>:</mo><mspace width="0.167em"></mspace><msup><mn>0</mn><mi>n</mi></msup><mo>→</mo><mi>b</mi></mrow></munder><mi>a</mi><mo form="prefix" stretchy="false">(</mo><mi>π</mi><mo form="postfix" stretchy="false">)</mo><mi>.</mi></mrow><annotation encoding="application/x-tex">
+\alpha_b=\langle b|U_C|0^n\rangle
+=\sum_{\pi:\,0^n\to b}a(\pi).
+</annotation></semantics></math></div>
+<p>每条 path 内乘 transition amplitudes，不同 paths 之间求和。这正好是 WMC 的 sum-of-products structure。因此加上固定 output 的 constraint <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>F</mi><mi>b</mi></msub><annotation encoding="application/x-tex">F_b</annotation></semantics></math>，就得到：</p>
+<div class="equation"><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mrow><mi mathvariant="normal">WMC</mi><mo>⁡</mo></mrow><mi>w</mi></msub><mo form="prefix" stretchy="false">(</mo><msub><mi>F</mi><mrow><mi mathvariant="normal">i</mi><mi mathvariant="normal">n</mi><mi mathvariant="normal">i</mi><mi mathvariant="normal">t</mi></mrow></msub><mo>∧</mo><msub><mi>F</mi><mi>C</mi></msub><mo>∧</mo><msub><mi>F</mi><mi>b</mi></msub><mo form="postfix" stretchy="false">)</mo><mo>=</mo><msub><mi>α</mi><mi>b</mi></msub><mi>.</mi></mrow><annotation encoding="application/x-tex">
+\operatorname{WMC}_w(F_{\mathrm{init}}\land F_C\land F_b)=\alpha_b.
+</annotation></semantics></math></div>
+<p>这个 path-sum 是把 gate composition 展开后的解释，对应 <a href="#material-synthesis">synthesis paper §2.3 的 encoding 与 Lemma 2</a>。这里 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>α</mi><mi>b</mi></msub><annotation encoding="application/x-tex">\alpha_b</annotation></semantics></math> 专指输出 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>U</mi><mi>C</mi></msub><mo form="prefix" stretchy="false">|</mo><msup><mn>0</mn><mi>n</mi></msup><mo form="postfix" stretchy="false">⟩</mo></mrow><annotation encoding="application/x-tex">U_C|0^n\rangle</annotation></semantics></math> 的 amplitude。</p>
+<p>从公式到 CNF 时也要保留这些 weighted contributions。仅仅保留 satisfiability 不够：如果一个 path 因为新 auxiliaries 获得多个额外 extensions，普通 model count 就会改变。上面的 Hadamard encoding 让 auxiliaries 由 transition 确定，正是最小的例子。</p>
+</section><section class="post-section"><h4 id="interference">4.2 Example：两个 Hadamard gates</h4>
+<p>从 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo form="prefix" stretchy="false">|</mo><mn>0</mn><mo form="postfix" stretchy="false">⟩</mo></mrow><annotation encoding="application/x-tex">|0\rangle</annotation></semantics></math> 出发连续执行两次 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>H</mi><annotation encoding="application/x-tex">H</annotation></semantics></math>。下面把四条 paths 全部列出来，箭头上省略 gate 名称，每一步都是 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>H</mi><annotation encoding="application/x-tex">H</annotation></semantics></math>：</p>
+<div aria-label="Hadamard path contributions" class="table-scroll" role="region" tabindex="0"><table>
+<thead>
+<tr>
+<th scope="col">Path</th>
+<th scope="col">Product of transition amplitudes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>0</mn><mo>→</mo><mn>0</mn><mo>→</mo><mn>0</mn></mrow><annotation encoding="application/x-tex">0\to0\to0</annotation></semantics></math></td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo form="prefix" stretchy="false">(</mo><mn>1</mn><mi>/</mi><msqrt><mn>2</mn></msqrt><mo form="postfix" stretchy="false">)</mo><mo form="prefix" stretchy="false">(</mo><mn>1</mn><mi>/</mi><msqrt><mn>2</mn></msqrt><mo form="postfix" stretchy="false">)</mo><mo>=</mo><mn>1</mn><mi>/</mi><mn>2</mn></mrow><annotation encoding="application/x-tex">(1/\sqrt2)(1/\sqrt2)=1/2</annotation></semantics></math></td>
+</tr>
+<tr>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>0</mn><mo>→</mo><mn>1</mn><mo>→</mo><mn>0</mn></mrow><annotation encoding="application/x-tex">0\to1\to0</annotation></semantics></math></td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo form="prefix" stretchy="false">(</mo><mn>1</mn><mi>/</mi><msqrt><mn>2</mn></msqrt><mo form="postfix" stretchy="false">)</mo><mo form="prefix" stretchy="false">(</mo><mn>1</mn><mi>/</mi><msqrt><mn>2</mn></msqrt><mo form="postfix" stretchy="false">)</mo><mo>=</mo><mn>1</mn><mi>/</mi><mn>2</mn></mrow><annotation encoding="application/x-tex">(1/\sqrt2)(1/\sqrt2)=1/2</annotation></semantics></math></td>
+</tr>
+<tr>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>0</mn><mo>→</mo><mn>0</mn><mo>→</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">0\to0\to1</annotation></semantics></math></td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo form="prefix" stretchy="false">(</mo><mn>1</mn><mi>/</mi><msqrt><mn>2</mn></msqrt><mo form="postfix" stretchy="false">)</mo><mo form="prefix" stretchy="false">(</mo><mn>1</mn><mi>/</mi><msqrt><mn>2</mn></msqrt><mo form="postfix" stretchy="false">)</mo><mo>=</mo><mn>1</mn><mi>/</mi><mn>2</mn></mrow><annotation encoding="application/x-tex">(1/\sqrt2)(1/\sqrt2)=1/2</annotation></semantics></math></td>
+</tr>
+<tr>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>0</mn><mo>→</mo><mn>1</mn><mo>→</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">0\to1\to1</annotation></semantics></math></td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo form="prefix" stretchy="false">(</mo><mn>1</mn><mi>/</mi><msqrt><mn>2</mn></msqrt><mo form="postfix" stretchy="false">)</mo><mo form="prefix" stretchy="false">(</mo><mi>−</mi><mn>1</mn><mi>/</mi><msqrt><mn>2</mn></msqrt><mo form="postfix" stretchy="false">)</mo><mo>=</mo><mi>−</mi><mn>1</mn><mi>/</mi><mn>2</mn></mrow><annotation encoding="application/x-tex">(1/\sqrt2)(-1/\sqrt2)=-1/2</annotation></semantics></math></td>
+</tr>
+</tbody>
+</table></div>
+<p>按终点分别求和：</p>
+<div class="equation"><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>α</mi><mn>0</mn></msub><mo>=</mo><mfrac><mn>1</mn><mn>2</mn></mfrac><mo>+</mo><mfrac><mn>1</mn><mn>2</mn></mfrac><mo>=</mo><mn>1</mn><mo>,</mo><mspace width="2.0em"></mspace><msub><mi>α</mi><mn>1</mn></msub><mo>=</mo><mfrac><mn>1</mn><mn>2</mn></mfrac><mo>−</mo><mfrac><mn>1</mn><mn>2</mn></mfrac><mo>=</mo><mn>0</mn><mi>.</mi></mrow><annotation encoding="application/x-tex">
+\alpha_0=\frac12+\frac12=1,
+\qquad
+\alpha_1=\frac12-\frac12=0.
+</annotation></semantics></math></div>
+<p>于是 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msup><mi>H</mi><mn>2</mn></msup><mo form="prefix" stretchy="false">|</mo><mn>0</mn><mo form="postfix" stretchy="false">⟩</mo><mo>=</mo><mo form="prefix" stretchy="false">|</mo><mn>0</mn><mo form="postfix" stretchy="false">⟩</mo></mrow><annotation encoding="application/x-tex">H^2|0\rangle=|0\rangle</annotation></semantics></math>。到达 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mn>0</mn><annotation encoding="application/x-tex">0</annotation></semantics></math> 的 contributions 相长，到达 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mn>1</mn><annotation encoding="application/x-tex">1</annotation></semantics></math> 的 contributions 相消。这是直接用 Hadamard matrix 算出的例子，也说明 interference 怎样出现在 weighted satisfying assignments 的加和中。</p>
+<p>必须先把到达同一终点的 amplitudes 加起来，再取模平方。若先对每条 path 取模平方再求和，相消的信息就没有了。</p>
+</section><section class="post-section"><h3 id="cb-pb">5. Computational Basis 和 Pauli Basis</h3>
+</section><section class="post-section"><h4 id="density-matrix">5.1 从 State Vector 到 Density Matrix</h4>
+<p>CB 的 path-sum 很直观，但一般需要 complex weights。Simulation paper 采用另一种表示：先把 pure state 变成 density matrix，再在 Pauli basis 中展开。</p>
+<div class="equation"><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>ρ</mi><mo>=</mo><mo form="prefix" stretchy="false">|</mo><mi>ψ</mi><mo form="postfix" stretchy="false">⟩</mo><mo form="prefix" stretchy="false">⟨</mo><mi>ψ</mi><mo form="prefix" stretchy="false">|</mo><mo>=</mo><munderover><mo>∑</mo><mrow><mi>j</mi><mo>=</mo><mn>0</mn></mrow><mrow><msup><mn>4</mn><mi>n</mi></msup><mo>−</mo><mn>1</mn></mrow></munderover><msub><mi>β</mi><mi>j</mi></msub><msub><mi>P</mi><mi>j</mi></msub><mo>,</mo><mspace width="2.0em"></mspace><msub><mi>P</mi><mi>j</mi></msub><mo>∈</mo><mo form="prefix" stretchy="false">{</mo><mi>I</mi><mo>,</mo><mi>X</mi><mo>,</mo><mi>Y</mi><mo>,</mo><mi>Z</mi><msup><mo form="postfix" stretchy="false">}</mo><mrow><mi>⊗</mi><mi>n</mi></mrow></msup><mi>.</mi></mrow><annotation encoding="application/x-tex">
+\rho=|\psi\rangle\langle\psi|
+=\sum_{j=0}^{4^n-1}\beta_jP_j,
+\qquad P_j\in\{I,X,Y,Z\}^{\otimes n}.
+</annotation></semantics></math></div>
+<p>为什么这里换成了 density matrix？因为 Pauli strings 是 operators，它们构成 operator space 的 basis；<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo form="prefix" stretchy="false">|</mo><mi>b</mi><mo form="postfix" stretchy="false">⟩</mo></mrow><annotation encoding="application/x-tex">|b\rangle</annotation></semantics></math> 则是 state-vector space 的 basis。两者展开的对象不同。</p>
+<p>一个最小的例子是：</p>
+<div class="equation"><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo form="prefix" stretchy="false">|</mo><mn>0</mn><mo form="postfix" stretchy="false">⟩</mo><mo form="prefix" stretchy="false">⟨</mo><mn>0</mn><mo form="prefix" stretchy="false">|</mo><mo>=</mo><mrow><mo form="prefix" stretchy="true">(</mo><mtable><mtr><mtd columnalign="center" style="text-align: center"><mn>1</mn></mtd><mtd columnalign="center" style="text-align: center"><mn>0</mn></mtd></mtr><mtr><mtd columnalign="center" style="text-align: center"><mn>0</mn></mtd><mtd columnalign="center" style="text-align: center"><mn>0</mn></mtd></mtr></mtable><mo form="postfix" stretchy="true">)</mo></mrow><mo>=</mo><mfrac><mrow><mi>I</mi><mo>+</mo><mi>Z</mi></mrow><mn>2</mn></mfrac><mi>.</mi></mrow><annotation encoding="application/x-tex">
+|0\rangle\langle0|=
+\begin{pmatrix}1&amp;0\\0&amp;0\end{pmatrix}
+=\frac{I+Z}{2}.
+</annotation></semantics></math></div>
+<p>同一个 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo form="prefix" stretchy="false">|</mo><mn>0</mn><mo form="postfix" stretchy="false">⟩</mo></mrow><annotation encoding="application/x-tex">|0\rangle</annotation></semantics></math>，在 CB 中只有一个 basis component；它的 density matrix 在 PB 中有两个 components，各自 coefficient 为 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1</mn><mi>/</mi><mn>2</mn></mrow><annotation encoding="application/x-tex">1/2</annotation></semantics></math>。</p>
+<p>由于 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>ρ</mi><annotation encoding="application/x-tex">\rho</annotation></semantics></math> 和 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>P</mi><mi>j</mi></msub><annotation encoding="application/x-tex">P_j</annotation></semantics></math> 都是 Hermitian，Pauli coefficients <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>β</mi><mi>j</mi></msub><annotation encoding="application/x-tex">\beta_j</annotation></semantics></math> 是 real，但可以为负。比如 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo form="prefix" stretchy="false">|</mo><mi>−</mi><mo form="postfix" stretchy="false">⟩</mo><mo form="prefix" stretchy="false">⟨</mo><mi>−</mi><mo form="prefix" stretchy="false">|</mo><mo>=</mo><mo form="prefix" stretchy="false">(</mo><mi>I</mi><mo>−</mo><mi>X</mi><mo form="postfix" stretchy="false">)</mo><mi>/</mi><mn>2</mn></mrow><annotation encoding="application/x-tex">|-\rangle\langle-|=(I-X)/2</annotation></semantics></math>。这不要求 Pauli matrices 自身只有 real entries：<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>Y</mi><annotation encoding="application/x-tex">Y</annotation></semantics></math> 含有 imaginary entries，real 的是展开系数。（<a href="#material-simulation">Simulation paper §2.1</a>；<a href="#material-synthesis">synthesis paper §2.1、§2.3</a>。）</p>
+<div aria-label="Computational and Pauli basis comparison" class="table-scroll" role="region" tabindex="0"><table>
+<colgroup>
+<col style="width: 33%"/>
+<col style="width: 33%"/>
+<col style="width: 33%"/>
+</colgroup>
+<thead>
+<tr>
+<th scope="col"></th>
+<th scope="col">Computational Basis (CB)</th>
+<th scope="col">Pauli Basis (PB)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Representation object</td>
+<td>State vector <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo form="prefix" stretchy="false">|</mo><mi>ψ</mi><mo form="postfix" stretchy="false">⟩</mo></mrow><annotation encoding="application/x-tex">|\psi\rangle</annotation></semantics></math></td>
+<td>Density matrix <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>ρ</mi><annotation encoding="application/x-tex">\rho</annotation></semantics></math></td>
+</tr>
+<tr>
+<td>Basis element</td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo form="prefix" stretchy="false">|</mo><mi>b</mi><mo form="postfix" stretchy="false">⟩</mo></mrow><annotation encoding="application/x-tex">|b\rangle</annotation></semantics></math></td>
+<td>Pauli string <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>P</mi><mi>j</mi></msub><annotation encoding="application/x-tex">P_j</annotation></semantics></math></td>
+</tr>
+<tr>
+<td>一个时刻的 basis assignment</td>
+<td>Bit string <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>b</mi><annotation encoding="application/x-tex">b</annotation></semantics></math></td>
+<td>每个 qubit 上的 Pauli label</td>
+</tr>
+<tr>
+<td>完整 circuit assignment</td>
+<td>一条 basis path 的贡献</td>
+<td>一条 Pauli 展开路径的贡献</td>
+</tr>
+<tr>
+<td>按终点汇总后的 weight</td>
+<td>Amplitude <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>α</mi><mi>b</mi></msub><annotation encoding="application/x-tex">\alpha_b</annotation></semantics></math></td>
+<td>Coefficient <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>β</mi><mi>j</mi></msub><annotation encoding="application/x-tex">\beta_j</annotation></semantics></math></td>
+</tr>
+<tr>
+<td>Numerical domain</td>
+<td>一般为 complex</td>
+<td>Real，可以为负</td>
+</tr>
+</tbody>
+</table></div>
+<p>PB 每个 qubit 用两个 bits 编码：<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo form="prefix" stretchy="false">(</mo><msub><mi>x</mi><mi>i</mi></msub><mo>,</mo><msub><mi>z</mi><mi>i</mi></msub><mo form="postfix" stretchy="false">)</mo><mo>=</mo><mn>00</mn><mo>,</mo><mn>10</mn><mo>,</mo><mn>11</mn><mo>,</mo><mn>01</mn></mrow><annotation encoding="application/x-tex">(x_i,z_i)=00,10,11,01</annotation></semantics></math> 分别表示 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>I</mi><mo>,</mo><mi>X</mi><mo>,</mo><mi>Y</mi><mo>,</mo><mi>Z</mi></mrow><annotation encoding="application/x-tex">I,X,Y,Z</annotation></semantics></math>。这里的 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>x</mi><mi>i</mi></msub><mo>,</mo><msub><mi>z</mi><mi>i</mi></msub></mrow><annotation encoding="application/x-tex">x_i,z_i</annotation></semantics></math> 是 Boolean variables，<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>X</mi><mo>,</mo><mi>Y</mi><mo>,</mo><mi>Z</mi></mrow><annotation encoding="application/x-tex">X,Y,Z</annotation></semantics></math> 则是 Pauli operators。</p>
+<p>还要区分一个 assignment 的 contribution 和最终 coefficient。同一个输出 Pauli string 可能由多条展开路径得到，<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>β</mi><mi>j</mi></msub><annotation encoding="application/x-tex">\beta_j</annotation></semantics></math> 是这些 contributions 求和后的结果；CB 的 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>α</mi><mi>b</mi></msub><annotation encoding="application/x-tex">\alpha_b</annotation></semantics></math> 也是如此。</p>
+</section><section class="post-section"><h4 id="stabilizers">5.2 Stabilizers 和 Generalized Stabilizers</h4>
+<p>如果一个 operator <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>P</mi><annotation encoding="application/x-tex">P</annotation></semantics></math> 满足：</p>
+<div class="equation"><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>P</mi><mo form="prefix" stretchy="false">|</mo><mi>ψ</mi><mo form="postfix" stretchy="false">⟩</mo><mo>=</mo><mo form="prefix" stretchy="false">|</mo><mi>ψ</mi><mo form="postfix" stretchy="false">⟩</mo><mo>,</mo></mrow><annotation encoding="application/x-tex">
+P|\psi\rangle=|\psi\rangle,
+</annotation></semantics></math></div>
+<p>就说 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>P</mi><annotation encoding="application/x-tex">P</annotation></semantics></math> stabilizes <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo form="prefix" stretchy="false">|</mo><mi>ψ</mi><mo form="postfix" stretchy="false">⟩</mo></mrow><annotation encoding="application/x-tex">|\psi\rangle</annotation></semantics></math>。例如 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>Z</mi><mo form="prefix" stretchy="false">|</mo><mn>0</mn><mo form="postfix" stretchy="false">⟩</mo><mo>=</mo><mo form="prefix" stretchy="false">|</mo><mn>0</mn><mo form="postfix" stretchy="false">⟩</mo></mrow><annotation encoding="application/x-tex">Z|0\rangle=|0\rangle</annotation></semantics></math>。</p>
+<p>对于一个 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>n</mi><annotation encoding="application/x-tex">n</annotation></semantics></math>-qubit stabilizer state，它的 stabilizer group <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>S</mi><mi>ψ</mi></msub><annotation encoding="application/x-tex">S_\psi</annotation></semantics></math> 包含 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msup><mn>2</mn><mi>n</mi></msup><annotation encoding="application/x-tex">2^n</annotation></semantics></math> 个 commuting Pauli operators，包括可能带负号的 Pauli strings。它的 density operator 可以写成：</p>
+<div class="equation"><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo form="prefix" stretchy="false">|</mo><mi>ψ</mi><mo form="postfix" stretchy="false">⟩</mo><mo form="prefix" stretchy="false">⟨</mo><mi>ψ</mi><mo form="prefix" stretchy="false">|</mo><mo>=</mo><mfrac><mn>1</mn><msup><mn>2</mn><mi>n</mi></msup></mfrac><munder><mo>∑</mo><mrow><mi>P</mi><mo>∈</mo><msub><mi>S</mi><mi>ψ</mi></msub></mrow></munder><mi>P</mi><mi>.</mi></mrow><annotation encoding="application/x-tex">
+|\psi\rangle\langle\psi|=
+\frac1{2^n}\sum_{P\in S_\psi}P.
+</annotation></semantics></math></div>
+<p>刚才的 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo form="prefix" stretchy="false">(</mo><mi>I</mi><mo>+</mo><mi>Z</mi><mo form="postfix" stretchy="false">)</mo><mi>/</mi><mn>2</mn></mrow><annotation encoding="application/x-tex">(I+Z)/2</annotation></semantics></math> 就是 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>S</mi><mrow><mo form="prefix" stretchy="false">|</mo><mn>0</mn><mo form="postfix" stretchy="false">⟩</mo></mrow></msub><mo>=</mo><mo form="prefix" stretchy="false">{</mo><mi>I</mi><mo>,</mo><mi>Z</mi><mo form="postfix" stretchy="false">}</mo></mrow><annotation encoding="application/x-tex">S_{|0\rangle}=\{I,Z\}</annotation></semantics></math> 的情况。Clifford gates 适合这个表示，因为 conjugation <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>P</mi><mo>↦</mo><mi>U</mi><mi>P</mi><msup><mi>U</mi><mo>†</mo></msup></mrow><annotation encoding="application/x-tex">P\mapsto UPU^\dagger</annotation></semantics></math> 把 Pauli group 映回自身。（<a href="#material-simulation">Simulation paper §2.2, Eq. 1</a>。）</p>
+<p>但加入 non-Clifford <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>T</mi><annotation encoding="application/x-tex">T</annotation></semantics></math> gate 后，单个 Pauli operator 可以变成 linear combination：</p>
+<div class="equation"><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>T</mi><mi>X</mi><msup><mi>T</mi><mo>†</mo></msup><mo>=</mo><mfrac><mrow><mi>X</mi><mo>+</mo><mi>Y</mi></mrow><msqrt><mn>2</mn></msqrt></mfrac><mo>,</mo><mspace width="2.0em"></mspace><mi>T</mi><mi>Y</mi><msup><mi>T</mi><mo>†</mo></msup><mo>=</mo><mfrac><mrow><mi>Y</mi><mo>−</mo><mi>X</mi></mrow><msqrt><mn>2</mn></msqrt></mfrac><mi>.</mi></mrow><annotation encoding="application/x-tex">
+TXT^\dagger=\frac{X+Y}{\sqrt2},
+\qquad
+TYT^\dagger=\frac{Y-X}{\sqrt2}.
+</annotation></semantics></math></div>
+<p>所以普通 Pauli stabilizer group 的形式不足以直接处理这种 evolution。Simulation paper §3.1 的 Definition 2 与 Proposition 1 使用 generalized stabilizer group。一个具体 construction 是：若 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo form="prefix" stretchy="false">|</mo><mi>ψ</mi><mo form="postfix" stretchy="false">⟩</mo><mo>=</mo><mi>U</mi><mo form="prefix" stretchy="false">|</mo><msup><mn>0</mn><mi>n</mi></msup><mo form="postfix" stretchy="false">⟩</mo></mrow><annotation encoding="application/x-tex">|\psi\rangle=U|0^n\rangle</annotation></semantics></math>，取</p>
+<div class="equation"><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>S</mi><mi>ψ</mi></msub><mo>=</mo><mo form="prefix" stretchy="false">{</mo><mi>U</mi><mi>P</mi><msup><mi>U</mi><mo>†</mo></msup><mo>:</mo><mi>P</mi><mo>∈</mo><msub><mi>S</mi><mrow><mo form="prefix" stretchy="false">|</mo><msup><mn>0</mn><mi>n</mi></msup><mo form="postfix" stretchy="false">⟩</mo></mrow></msub><mo form="postfix" stretchy="false">}</mo><mi>.</mi></mrow><annotation encoding="application/x-tex">
+S_\psi=\{UPU^\dagger:P\in S_{|0^n\rangle}\}.
+</annotation></semantics></math></div>
+<p>它仍有 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msup><mn>2</mn><mi>n</mi></msup><annotation encoding="application/x-tex">2^n</annotation></semantics></math> 个 commuting unitary operators，都以 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo form="prefix" stretchy="false">|</mo><mi>ψ</mi><mo form="postfix" stretchy="false">⟩</mo></mrow><annotation encoding="application/x-tex">|\psi\rangle</annotation></semantics></math> 为 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>+</mi><mn>1</mn></mrow><annotation encoding="application/x-tex">+1</annotation></semantics></math> eigenvector，并且上面的 density-operator 求和公式仍然成立。但这些 operators 不一定还是单个 Pauli string；将它们展开，就得到带 real coefficients 的 Pauli sums。</p>
+<p>Encoding 进一步把这些 sums 展平，保留每个 weighted Pauli contribution。一个被展开出来的 summand 不必单独 stabilize <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo form="prefix" stretchy="false">|</mo><mi>ψ</mi><mo form="postfix" stretchy="false">⟩</mo></mrow><annotation encoding="application/x-tex">|\psi\rangle</annotation></semantics></math>，任意一堆 weighted strings 也不能直接叫作 stabilizer group。</p>
+<p>因此，Pauli basis 是选择怎样表示 operator；stabilizer formalism 则描述一类 state 与 operators 之间的结构。Generalized construction 说明了如何越过 Clifford 的限制。最后交给 simulation model counter 的是 real weights，包括 negative weights，不需要直接处理 complex amplitudes。</p>
+</section><section class="post-section"><h3 id="simulation">6. Strong Simulation：把 Measurement 也编码进去</h3>
+<p>现在 circuit 已经固定，想知道一个指定 measurement outcome 的 probability。对完整 computational-basis outcome <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>b</mi><annotation encoding="application/x-tex">b</annotation></semantics></math>，CB 给出：</p>
+<div class="equation"><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>p</mi><mo form="prefix" stretchy="false">(</mo><mi>b</mi><mo form="postfix" stretchy="false">)</mo><mo>=</mo><mo form="prefix" stretchy="false">|</mo><msub><mi>α</mi><mi>b</mi></msub><msup><mo form="prefix" stretchy="false">|</mo><mn>2</mn></msup><mi>.</mi></mrow><annotation encoding="application/x-tex">
+p(b)=|\alpha_b|^2.
+</annotation></semantics></math></div>
+<p>在 density-matrix 表示中，若 outcome 对应 projector <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi mathvariant="normal">Π</mi><annotation encoding="application/x-tex">\Pi</annotation></semantics></math>，则：</p>
+<div class="equation"><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>p</mi><mo form="prefix" stretchy="false">(</mo><mi mathvariant="normal">Π</mi><mo form="postfix" stretchy="false">)</mo><mo>=</mo><mrow><mi mathvariant="normal">Tr</mi><mo>⁡</mo></mrow><mo form="prefix" stretchy="false">(</mo><mi mathvariant="normal">Π</mi><mi>ρ</mi><mo form="postfix" stretchy="false">)</mo><mo>,</mo><mspace width="2.0em"></mspace><mi>ρ</mi><mo>=</mo><msub><mi>U</mi><mi>C</mi></msub><mo form="prefix" stretchy="false">|</mo><msup><mn>0</mn><mi>n</mi></msup><mo form="postfix" stretchy="false">⟩</mo><mo form="prefix" stretchy="false">⟨</mo><msup><mn>0</mn><mi>n</mi></msup><mo form="prefix" stretchy="false">|</mo><msubsup><mi>U</mi><mi>C</mi><mo>†</mo></msubsup><mi>.</mi></mrow><annotation encoding="application/x-tex">
+p(\Pi)=\operatorname{Tr}(\Pi\rho),
+\qquad
+\rho=U_C|0^n\rangle\langle0^n|U_C^\dagger.
+</annotation></semantics></math></div>
+<p>这就是 <a href="#material-simulation">simulation paper Definition 1</a> 所定义的 strong simulation quantity。<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi mathvariant="normal">Π</mi><annotation encoding="application/x-tex">\Pi</annotation></semantics></math> 在这里始终表示 measurement projector，<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>P</mi><mi>j</mi></msub><annotation encoding="application/x-tex">P_j</annotation></semantics></math> 始终表示 Pauli string。</p>
+</section><section class="post-section"><h4 id="measurement">6.1 Measurement 的 constraints 和 normalization</h4>
+<p>先说明 normalization 的放置。前面的 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>β</mi><mi>j</mi></msub><annotation encoding="application/x-tex">\beta_j</annotation></semantics></math> 是 normalized density matrix 的 coefficients；simulation paper §3.2 的实际 encoding 从 initial stabilizer group 出发，将公共因子 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msup><mn>2</mn><mrow><mi>−</mi><mi>n</mi></mrow></msup><annotation encoding="application/x-tex">2^{-n}</annotation></semantics></math> 留在外面。用前面分开的 circuit notation，它表示：</p>
+<div class="equation"><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>ρ</mi><mo>=</mo><mfrac><mn>1</mn><msup><mn>2</mn><mi>n</mi></msup></mfrac><munder><mo>∑</mo><mrow><mi>ω</mi><mo>⊨</mo><msub><mi>F</mi><mrow><mi mathvariant="normal">i</mi><mi mathvariant="normal">n</mi><mi mathvariant="normal">i</mi><mi mathvariant="normal">t</mi></mrow></msub><mo>∧</mo><msub><mi>F</mi><mi>C</mi></msub></mrow></munder><mi>W</mi><mo form="prefix" stretchy="false">(</mo><mi>ω</mi><mo form="postfix" stretchy="false">)</mo><msub><mi>P</mi><mrow><mi mathvariant="normal">o</mi><mi mathvariant="normal">u</mi><mi mathvariant="normal">t</mi></mrow></msub><mo form="prefix" stretchy="false">(</mo><mi>ω</mi><mo form="postfix" stretchy="false">)</mo><mi>.</mi></mrow><annotation encoding="application/x-tex">
+\rho=\frac1{2^n}
+\sum_{\omega\models F_{\mathrm{init}}\land F_C}
+W(\omega)P_{\mathrm{out}}(\omega).
+</annotation></semantics></math></div>
+<p>此处是 PB encoding。Initial condition 让每个 qubit 的 Pauli label 为 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>I</mi><annotation encoding="application/x-tex">I</annotation></semantics></math> 或 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>Z</mi><annotation encoding="application/x-tex">Z</annotation></semantics></math>，初始符号为正；并不是 CB 中将每个 qubit 的 basis bit 固定为 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mn>0</mn><annotation encoding="application/x-tex">0</annotation></semantics></math>。</p>
+<p>设测量 qubit 集合 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>M</mi><annotation encoding="application/x-tex">M</annotation></semantics></math>，<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>k</mi><mo>=</mo><mo form="prefix" stretchy="false">|</mo><mi>M</mi><mo form="prefix" stretchy="false">|</mo></mrow><annotation encoding="application/x-tex">k=|M|</annotation></semantics></math>，先考虑这些 qubits 全部得到 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mn>0</mn><annotation encoding="application/x-tex">0</annotation></semantics></math>。Projector 在被测 qubits 上是 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo form="prefix" stretchy="false">(</mo><mi>I</mi><mo>+</mo><mi>Z</mi><mo form="postfix" stretchy="false">)</mo><mi>/</mi><mn>2</mn></mrow><annotation encoding="application/x-tex">(I+Z)/2</annotation></semantics></math>，其余位置是 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>I</mi><annotation encoding="application/x-tex">I</annotation></semantics></math>。由 trace 公式展开，只有以下输出 Pauli strings 有贡献：被测位置为 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>I</mi><annotation encoding="application/x-tex">I</annotation></semantics></math> 或 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>Z</mi><annotation encoding="application/x-tex">Z</annotation></semantics></math>，未测位置为 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>I</mi><annotation encoding="application/x-tex">I</annotation></semantics></math>。因此可以把选择条件明确写成：</p>
+<div class="equation"><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>F</mi><mrow><mi mathvariant="normal">m</mi><mi mathvariant="normal">e</mi><mi mathvariant="normal">a</mi><mi mathvariant="normal">s</mi></mrow></msub><mo>=</mo><munder><mo>⋀</mo><mrow><mi>i</mi><mo>∈</mo><mi>M</mi></mrow></munder><mo>¬</mo><msubsup><mi>x</mi><mi>i</mi><mi>m</mi></msubsup><mspace width="0.222em"></mspace><mo>∧</mo><mspace width="-0.167em"></mspace><munder><mo>⋀</mo><mrow><mi>i</mi><mo>∉</mo><mi>M</mi></mrow></munder><mo form="prefix" stretchy="false">(</mo><mo>¬</mo><msubsup><mi>x</mi><mi>i</mi><mi>m</mi></msubsup><mo>∧</mo><mo>¬</mo><msubsup><mi>z</mi><mi>i</mi><mi>m</mi></msubsup><mo form="postfix" stretchy="false">)</mo><mi>.</mi></mrow><annotation encoding="application/x-tex">
+F_{\mathrm{meas}}=
+\bigwedge_{i\in M}\neg x_i^m
+\ \land\!
+\bigwedge_{i\notin M}(\neg x_i^m\land\neg z_i^m).
+</annotation></semantics></math></div>
+<p>这里未测量位置的 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>I</mi><annotation encoding="application/x-tex">I</annotation></semantics></math> 条件来自 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mrow><mi mathvariant="normal">Tr</mi><mo>⁡</mo></mrow><mo form="prefix" stretchy="false">(</mo><mi>X</mi><mo form="postfix" stretchy="false">)</mo><mo>=</mo><mrow><mi mathvariant="normal">Tr</mi><mo>⁡</mo></mrow><mo form="prefix" stretchy="false">(</mo><mi>Y</mi><mo form="postfix" stretchy="false">)</mo><mo>=</mo><mrow><mi mathvariant="normal">Tr</mi><mo>⁡</mo></mrow><mo form="prefix" stretchy="false">(</mo><mi>Z</mi><mo form="postfix" stretchy="false">)</mo><mo>=</mo><mn>0</mn></mrow><annotation encoding="application/x-tex">\operatorname{Tr}(X)=\operatorname{Tr}(Y)=\operatorname{Tr}(Z)=0</annotation></semantics></math>，不能把这些位置的所有 Pauli labels 都无条件加进去。每个保留下来的 string 满足 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mrow><mi mathvariant="normal">Tr</mi><mo>⁡</mo></mrow><mo form="prefix" stretchy="false">(</mo><mi mathvariant="normal">Π</mi><mi>P</mi><mo form="postfix" stretchy="false">)</mo><mo>=</mo><msup><mn>2</mn><mrow><mi>n</mi><mo>−</mo><mi>k</mi></mrow></msup></mrow><annotation encoding="application/x-tex">\operatorname{Tr}(\Pi P)=2^{n-k}</annotation></semantics></math>；与 density matrix 外面的 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msup><mn>2</mn><mrow><mi>−</mi><mi>n</mi></mrow></msup><annotation encoding="application/x-tex">2^{-n}</annotation></semantics></math> 合起来，留下 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msup><mn>2</mn><mrow><mi>−</mi><mi>k</mi></mrow></msup><annotation encoding="application/x-tex">2^{-k}</annotation></semantics></math>。</p>
+<p>于是，<a href="#material-simulation">simulation paper §3.4, Proposition 2</a> 的 strong simulation 等式是：</p>
+<div class="equation"><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>F</mi><mo>=</mo><msub><mi>F</mi><mrow><mi mathvariant="normal">i</mi><mi mathvariant="normal">n</mi><mi mathvariant="normal">i</mi><mi mathvariant="normal">t</mi></mrow></msub><mo>∧</mo><msub><mi>F</mi><mi>C</mi></msub><mo>∧</mo><msub><mi>F</mi><mrow><mi mathvariant="normal">m</mi><mi mathvariant="normal">e</mi><mi mathvariant="normal">a</mi><mi mathvariant="normal">s</mi></mrow></msub><mo>,</mo></mrow><annotation encoding="application/x-tex">
+F=F_{\mathrm{init}}\land F_C\land F_{\mathrm{meas}},
+</annotation></semantics></math></div>
+<div class="equation"><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mfrac><mn>1</mn><msup><mn>2</mn><mi>k</mi></msup></mfrac><msub><mrow><mi mathvariant="normal">WMC</mi><mo>⁡</mo></mrow><mi>w</mi></msub><mo form="prefix" stretchy="false">(</mo><mi>F</mi><mo form="postfix" stretchy="false">)</mo><mo>=</mo><mo form="prefix" stretchy="false">⟨</mo><msup><mn>0</mn><mi>n</mi></msup><mo form="prefix" stretchy="false">|</mo><msubsup><mi>U</mi><mi>C</mi><mo>†</mo></msubsup><mi mathvariant="normal">Π</mi><msub><mi>U</mi><mi>C</mi></msub><mo form="prefix" stretchy="false">|</mo><msup><mn>0</mn><mi>n</mi></msup><mo form="postfix" stretchy="false">⟩</mo><mi>.</mi></mrow><annotation encoding="application/x-tex">
+\frac1{2^k}\operatorname{WMC}_w(F)
+=\langle0^n|U_C^\dagger\Pi U_C|0^n\rangle.
+</annotation></semantics></math></div>
+<p>这里用 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>k</mi><annotation encoding="application/x-tex">k</annotation></semantics></math> 代替原 Proposition 中被测 qubits 数量的 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>q</mi><annotation encoding="application/x-tex">q</annotation></semantics></math>，避免与 basis variables 混淆。上面的具体 constraints 是把 trace 条件显式展开后的全零 outcome 情况。其他 bit outcomes 使用 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo form="prefix" stretchy="false">(</mo><mi>I</mi><mo>−</mo><mi>Z</mi><mo form="postfix" stretchy="false">)</mo><mi>/</mi><mn>2</mn></mrow><annotation encoding="application/x-tex">(I-Z)/2</annotation></semantics></math> 的相应符号贡献；probability 的定义与 normalization 不变。</p>
+<p>用一个 qubit 检查就很清楚：<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo form="prefix" stretchy="false">|</mo><mn>0</mn><mo form="postfix" stretchy="false">⟩</mo><mo form="prefix" stretchy="false">⟨</mo><mn>0</mn><mo form="prefix" stretchy="false">|</mo><mo>=</mo><mo form="prefix" stretchy="false">(</mo><mi>I</mi><mo>+</mo><mi>Z</mi><mo form="postfix" stretchy="false">)</mo><mi>/</mi><mn>2</mn></mrow><annotation encoding="application/x-tex">|0\rangle\langle0|=(I+Z)/2</annotation></semantics></math>，两个贡献的 count 是 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mn>2</mn><annotation encoding="application/x-tex">2</annotation></semantics></math>，乘 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1</mn><mi>/</mi><mn>2</mn></mrow><annotation encoding="application/x-tex">1/2</annotation></semantics></math> 得到 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mn>1</mn><annotation encoding="application/x-tex">1</annotation></semantics></math>。执行 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>H</mi><annotation encoding="application/x-tex">H</annotation></semantics></math> 后，density matrix 为 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo form="prefix" stretchy="false">(</mo><mi>I</mi><mo>+</mo><mi>X</mi><mo form="postfix" stretchy="false">)</mo><mi>/</mi><mn>2</mn></mrow><annotation encoding="application/x-tex">(I+X)/2</annotation></semantics></math>，测得 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mn>0</mn><annotation encoding="application/x-tex">0</annotation></semantics></math> 时只有 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>I</mi><annotation encoding="application/x-tex">I</annotation></semantics></math> 项保留下来，count 是 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mn>1</mn><annotation encoding="application/x-tex">1</annotation></semantics></math>，probability 是 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1</mn><mi>/</mi><mn>2</mn></mrow><annotation encoding="application/x-tex">1/2</annotation></semantics></math>。</p>
+<p>论文还给出一个 single-qubit 的等价做法：只选择输出 Pauli string <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>Z</mi><mi>i</mi></msub><annotation encoding="application/x-tex">Z_i</annotation></semantics></math>，算出 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>s</mi><mi>i</mi></msub><mo>=</mo><mrow><mi mathvariant="normal">Tr</mi><mo>⁡</mo></mrow><mo form="prefix" stretchy="false">(</mo><msub><mi>Z</mi><mi>i</mi></msub><mi>ρ</mi><mo form="postfix" stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">s_i=\operatorname{Tr}(Z_i\rho)</annotation></semantics></math>，再用：</p>
+<div class="equation"><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>p</mi><mi>i</mi></msub><mo form="prefix" stretchy="false">(</mo><mn>0</mn><mo form="postfix" stretchy="false">)</mo><mo>=</mo><mfrac><mrow><mn>1</mn><mo>+</mo><msub><mi>s</mi><mi>i</mi></msub></mrow><mn>2</mn></mfrac><mi>.</mi></mrow><annotation encoding="application/x-tex">
+p_i(0)=\frac{1+s_i}{2}.
+</annotation></semantics></math></div>
+<p>它对应 §3.4 的 Eq. 6–7。这个只选 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>Z</mi><mi>i</mi></msub><annotation encoding="application/x-tex">Z_i</annotation></semantics></math> 的 count 算的是 expectation，不能直接叫作 probability，也不能和同时保留 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>I</mi><annotation encoding="application/x-tex">I</annotation></semantics></math> 项的 measurement encoding 混用。</p>
+</section><section class="post-section"><h4 id="simulation-implementation">6.2 从 Reduction 到 Simulator</h4>
+<p>逻辑上可以给每个时刻画一组 state variables，但实现时没有必要为不变的 qubits 反复分配新 variables。Simulation paper §3.2 复用不变的 labels，每个局部 gate 只增加常数个 variables 和 constraints；initial condition 需要 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>O</mi><mo form="prefix" stretchy="false">(</mo><mi>n</mi><mo form="postfix" stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">O(n)</annotation></semantics></math>，于是 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>m</mi><annotation encoding="application/x-tex">m</annotation></semantics></math> 个 gates 的 encoding size 是 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>O</mi><mo form="prefix" stretchy="false">(</mo><mi>n</mi><mo>+</mo><mi>m</mi><mo form="postfix" stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">O(n+m)</annotation></semantics></math>。这是 formula size 的结论，不是 WMC 求解时间为线性。</p>
+<p>这一点让 reduction 可以实际落地。论文的 QCMC 读取 QASM，构造 weighted CNF，再交给支持 negative weights 的 GPMC。§4 的实验比较了 QuiZX 和 Quasimodo：随机 circuits 与部分带 rotation gates 的 benchmarks 展示了 WMC 的优势，但 Grover、quantum walk 等 structured circuits 中也有其他方法更快的情况。</p>
+<p>所以这里得到的是一种可执行的 universal-circuit strong simulation 方法：用 generalized stabilizer / Pauli representation 避开直接的 complex weights，用线性大小的 encoding 把任务交给已有 counter。不同 circuit structure 下的求解代价仍然不同。</p>
+</section><section class="post-section"><h3 id="verification">7. 从 Simulation 到 Verification</h3>
+<p>Simulation 问的是：这个 circuit 会产生什么 behaviour？Verification 则进一步问：这个 behaviour 是否满足 specification？</p>
+<p>一旦有 circuit relation，就可以把适用的 input conditions 与 output conditions 接在两端。例如对固定 input，算出指定 outcome 的 probability 后，再判断它是否满足要求。这是前面 simulation query 的直接用法；更一般的 specifications 还需要各自的 semantics 和 encoding。</p>
+<p>这里有一个容易忽略的区别：某条 Boolean path 存在，不代表对应 measurement outcome 有非零 probability。两个 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>H</mi><annotation encoding="application/x-tex">H</annotation></semantics></math> 的例子中，到达 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mn>1</mn><annotation encoding="application/x-tex">1</annotation></semantics></math> 的 paths 都合法，amplitude 却为 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mn>0</mn><annotation encoding="application/x-tex">0</annotation></semantics></math>。因此这类 quantum property 不能只看 SAT/UNSAT，还要看 weighted sum。</p>
+<p>这一节只是由 representation 得到的 verification 视角。两篇论文在本文中支持的具体任务是 strong simulation、unitary equivalence 和 synthesis；不能由此直接推出一个 general quantum verification framework。接下来只看其中定义明确的 equivalence problem。</p>
+</section><section class="post-section"><h3 id="equivalence">8. Equivalence：比较两个 Circuits</h3>
+</section><section class="post-section"><h4 id="global-phase">8.1 Global phase 和 approximate equivalence</h4>
+<p>设 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>C</mi><mn>1</mn></msub><annotation encoding="application/x-tex">C_1</annotation></semantics></math> 是 target，<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>C</mi><mn>2</mn></msub><annotation encoding="application/x-tex">C_2</annotation></semantics></math> 是另一个 circuit。Exact equivalence 比较的是所有 inputs 上的 unitary behaviour，而不是只比较 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo form="prefix" stretchy="false">|</mo><msup><mn>0</mn><mi>n</mi></msup><mo form="postfix" stretchy="false">⟩</mo></mrow><annotation encoding="application/x-tex">|0^n\rangle</annotation></semantics></math> 这一个 input。</p>
+<p>按 <a href="#material-synthesis">synthesis paper Definition 3</a>，exact equivalence 允许 global phase：</p>
+<div class="equation"><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>U</mi><msub><mi>C</mi><mn>2</mn></msub></msub><mo>≡</mo><msub><mi>U</mi><msub><mi>C</mi><mn>1</mn></msub></msub><mspace width="1.0em"></mspace><mo>⇔</mo><mspace width="1.0em"></mspace><msub><mi>U</mi><msub><mi>C</mi><mn>2</mn></msub></msub><mo>=</mo><mi>λ</mi><msub><mi>U</mi><msub><mi>C</mi><mn>1</mn></msub></msub><mo>,</mo><mspace width="2.0em"></mspace><mo form="prefix" stretchy="false">|</mo><mi>λ</mi><mo form="prefix" stretchy="false">|</mo><mo>=</mo><mn>1</mn><mi>.</mi></mrow><annotation encoding="application/x-tex">
+U_{C_2}\equiv U_{C_1}
+\quad\Longleftrightarrow\quad
+U_{C_2}=\lambda U_{C_1},\qquad |\lambda|=1.
+</annotation></semantics></math></div>
+<p>沿用该论文 §4 的 composition order，定义：</p>
+<div class="equation"><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>D</mi><mo>=</mo><msub><mi>U</mi><msub><mi>C</mi><mn>2</mn></msub></msub><msubsup><mi>U</mi><msub><mi>C</mi><mn>1</mn></msub><mo>†</mo></msubsup><mi>.</mi></mrow><annotation encoding="application/x-tex">
+D=U_{C_2}U_{C_1}^\dagger.
+</annotation></semantics></math></div>
+<p>也就是先作用 target inverse，再作用 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>C</mi><mn>2</mn></msub><annotation encoding="application/x-tex">C_2</annotation></semantics></math>。于是：</p>
+<div class="equation"><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>U</mi><msub><mi>C</mi><mn>2</mn></msub></msub><mo>≡</mo><msub><mi>U</mi><msub><mi>C</mi><mn>1</mn></msub></msub><mspace width="1.0em"></mspace><mo>⇔</mo><mspace width="1.0em"></mspace><mi>D</mi><mo>≡</mo><msup><mi>I</mi><mrow><mi>⊗</mi><mi>n</mi></mrow></msup><mi>.</mi></mrow><annotation encoding="application/x-tex">
+U_{C_2}\equiv U_{C_1}
+\quad\Longleftrightarrow\quad D\equiv I^{\otimes n}.
+</annotation></semantics></math></div>
+<p>Approximate equivalence 则需要一个比较标准。论文使用 Jamiołkowski fidelity：把 unitary <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>U</mi><annotation encoding="application/x-tex">U</annotation></semantics></math> 作用到 maximally entangled state 的一半，得到对应的 state，再比较这些 states 的 overlap。</p>
+<div class="equation"><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo form="prefix" stretchy="false">|</mo><msub><mi mathvariant="normal">Ψ</mi><mi>n</mi></msub><mo form="postfix" stretchy="false">⟩</mo><mo>=</mo><mfrac><mn>1</mn><msqrt><msup><mn>2</mn><mi>n</mi></msup></msqrt></mfrac><munder><mo>∑</mo><mi>b</mi></munder><mo form="prefix" stretchy="false">|</mo><mi>b</mi><mo form="postfix" stretchy="false">⟩</mo><mo>⊗</mo><mo form="prefix" stretchy="false">|</mo><mi>b</mi><mo form="postfix" stretchy="false">⟩</mo><mo>,</mo><mspace width="2.0em"></mspace><mo form="prefix" stretchy="false">|</mo><msub><mi>ϕ</mi><mi>U</mi></msub><mo form="postfix" stretchy="false">⟩</mo><mo>=</mo><mo form="prefix" stretchy="false">(</mo><mi>U</mi><mo>⊗</mo><msup><mi>I</mi><mrow><mi>⊗</mi><mi>n</mi></mrow></msup><mo form="postfix" stretchy="false">)</mo><mo form="prefix" stretchy="false">|</mo><msub><mi mathvariant="normal">Ψ</mi><mi>n</mi></msub><mo form="postfix" stretchy="false">⟩</mo><mo>,</mo></mrow><annotation encoding="application/x-tex">
+|\Psi_n\rangle=\frac1{\sqrt{2^n}}\sum_b|b\rangle\otimes|b\rangle,
+\qquad
+|\phi_U\rangle=(U\otimes I^{\otimes n})|\Psi_n\rangle,
+</annotation></semantics></math></div>
+<div class="equation"><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mrow><mi mathvariant="normal">Fid</mi><mo>⁡</mo></mrow><mi>J</mi></msub><mo form="prefix" stretchy="false">(</mo><mi>U</mi><mo>,</mo><mi>V</mi><mo form="postfix" stretchy="false">)</mo><mo>=</mo><mo form="prefix" stretchy="false">|</mo><mo form="prefix" stretchy="false">⟨</mo><msub><mi>ϕ</mi><mi>U</mi></msub><mo form="prefix" stretchy="false">|</mo><msub><mi>ϕ</mi><mi>V</mi></msub><mo form="postfix" stretchy="false">⟩</mo><msup><mo form="prefix" stretchy="false">|</mo><mn>2</mn></msup><mi>.</mi></mrow><annotation encoding="application/x-tex">
+\operatorname{Fid}_J(U,V)=|\langle\phi_U|\phi_V\rangle|^2.
+</annotation></semantics></math></div>
+<p>Definition 3 规定：</p>
+<div class="equation"><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>U</mi><msub><mo>≃</mo><mi>ε</mi></msub><mi>V</mi><mspace width="1.0em"></mspace><mo>⇔</mo><mspace width="1.0em"></mspace><msub><mrow><mi mathvariant="normal">Fid</mi><mo>⁡</mo></mrow><mi>J</mi></msub><mo form="prefix" stretchy="false">(</mo><mi>U</mi><mo>,</mo><mi>V</mi><mo form="postfix" stretchy="false">)</mo><mo>≥</mo><mn>1</mn><mo>−</mo><mi>ε</mi><mi>.</mi></mrow><annotation encoding="application/x-tex">
+U\simeq_\varepsilon V
+\quad\Longleftrightarrow\quad
+\operatorname{Fid}_J(U,V)\geq1-\varepsilon.
+</annotation></semantics></math></div>
+<p><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>ε</mi><mo>=</mo><mn>0</mn></mrow><annotation encoding="application/x-tex">\varepsilon=0</annotation></semantics></math> 时 fidelity 为 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mn>1</mn><annotation encoding="application/x-tex">1</annotation></semantics></math>，恰好对应 global phase 意义下的 exact equivalence。后面所有 approximate synthesis 都使用这个 criterion。</p>
+</section><section class="post-section"><h4 id="cyclic">8.2 Cyclic encoding</h4>
+<p>前面的 simulation 固定 input。现在要比较整个 operator，就让 input basis labels 自由，并要求 output label 与 input label 相同：</p>
+<div class="equation"><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>F</mi><mrow><mi mathvariant="normal">c</mi><mi mathvariant="normal">y</mi><mi mathvariant="normal">c</mi></mrow></msub><mo form="prefix" stretchy="false">(</mo><mi>D</mi><mo form="postfix" stretchy="false">)</mo><mo>=</mo><msub><mi>F</mi><mi>D</mi></msub><mo form="prefix" stretchy="false">(</mo><mi>𝐪</mi><mo>,</mo><msup><mi>𝐪</mi><mo>′</mo></msup><mo form="postfix" stretchy="false">)</mo><mo>∧</mo><msub><mi>F</mi><mi>I</mi></msub><mo form="prefix" stretchy="false">(</mo><mi>𝐪</mi><mo>,</mo><msup><mi>𝐪</mi><mo>′</mo></msup><mo form="postfix" stretchy="false">)</mo><mi>.</mi></mrow><annotation encoding="application/x-tex">
+F_{\mathrm{cyc}}(D)=F_D(\mathbf q,\mathbf q')\land F_I(\mathbf q,\mathbf q').
+</annotation></semantics></math></div>
+<p>CB 中，<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>F</mi><mi>I</mi></msub><annotation encoding="application/x-tex">F_I</annotation></semantics></math> 是每个 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>q</mi><mi>i</mi></msub><mo>↔</mo><msubsup><mi>q</mi><mi>i</mi><mo>′</mo></msubsup></mrow><annotation encoding="application/x-tex">q_i\leftrightarrow q_i'</annotation></semantics></math> 的合取；PB 中，则对每个 qubit 同时要求 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>x</mi><mi>i</mi></msub><mo>↔</mo><msubsup><mi>x</mi><mi>i</mi><mo>′</mo></msubsup></mrow><annotation encoding="application/x-tex">x_i\leftrightarrow x_i'</annotation></semantics></math> 和 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>z</mi><mi>i</mi></msub><mo>↔</mo><msubsup><mi>z</mi><mi>i</mi><mo>′</mo></msubsup></mrow><annotation encoding="application/x-tex">z_i\leftrightarrow z_i'</annotation></semantics></math>。Intermediate 和 auxiliary variables 仍然参与 model counting。</p>
+<p>这个 input/output equality 的作用可以直接在 CB 中看出来：对每个 input <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>b</mi><annotation encoding="application/x-tex">b</annotation></semantics></math>，只累加回到同一个 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>b</mi><annotation encoding="application/x-tex">b</annotation></semantics></math> 的 amplitude，然后再对所有 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>b</mi><annotation encoding="application/x-tex">b</annotation></semantics></math> 求和。因此：</p>
+<div class="equation"><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>c</mi><mrow><mi mathvariant="normal">C</mi><mi mathvariant="normal">B</mi></mrow></msub><mo form="prefix" stretchy="false">(</mo><mi>D</mi><mo form="postfix" stretchy="false">)</mo><mo>:=</mo><msub><mrow><mi mathvariant="normal">WMC</mi><mo>⁡</mo></mrow><mi>w</mi></msub><mo form="prefix" stretchy="false">(</mo><msubsup><mi>F</mi><mrow><mi mathvariant="normal">c</mi><mi mathvariant="normal">y</mi><mi mathvariant="normal">c</mi></mrow><mrow><mi mathvariant="normal">C</mi><mi mathvariant="normal">B</mi></mrow></msubsup><mo form="prefix" stretchy="false">(</mo><mi>D</mi><mo form="postfix" stretchy="false">)</mo><mo form="postfix" stretchy="false">)</mo><mo>=</mo><munder><mo>∑</mo><mi>b</mi></munder><mo form="prefix" stretchy="false">⟨</mo><mi>b</mi><mo form="prefix" stretchy="false">|</mo><mi>D</mi><mo form="prefix" stretchy="false">|</mo><mi>b</mi><mo form="postfix" stretchy="false">⟩</mo><mo>=</mo><mrow><mi mathvariant="normal">Tr</mi><mo>⁡</mo></mrow><mo form="prefix" stretchy="false">(</mo><mi>D</mi><mo form="postfix" stretchy="false">)</mo><mi>.</mi></mrow><annotation encoding="application/x-tex">
+c_{\mathrm{CB}}(D)
+:=\operatorname{WMC}_w(F_{\mathrm{cyc}}^{\mathrm{CB}}(D))
+=\sum_b\langle b|D|b\rangle
+=\operatorname{Tr}(D).
+</annotation></semantics></math></div>
+<p>所以 cyclic count 是一个 trace，并不是只问“有没有一条路径回到原点”。对于 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>D</mi><mo>=</mo><mi>λ</mi><msup><mi>I</mi><mrow><mi>⊗</mi><mi>n</mi></mrow></msup></mrow><annotation encoding="application/x-tex">D=\lambda I^{\otimes n}</annotation></semantics></math>，它等于 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msup><mn>2</mn><mi>n</mi></msup><mi>λ</mi></mrow><annotation encoding="application/x-tex">2^n\lambda</annotation></semantics></math>，global phase 仍在 count 中。</p>
+<p>PB 的情况类似，但被比较的是 conjugation <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>P</mi><mo>↦</mo><mi>D</mi><mi>P</mi><msup><mi>D</mi><mo>†</mo></msup></mrow><annotation encoding="application/x-tex">P\mapsto DPD^\dagger</annotation></semantics></math>。令 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>R</mi><mi>D</mi></msub><mo form="prefix" stretchy="false">(</mo><mi>j</mi><mo>,</mo><mi>j</mi><mo form="postfix" stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">R_D(j,j)</annotation></semantics></math> 表示 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>D</mi><msub><mi>P</mi><mi>j</mi></msub><msup><mi>D</mi><mo>†</mo></msup></mrow><annotation encoding="application/x-tex">DP_jD^\dagger</annotation></semantics></math> 中 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>P</mi><mi>j</mi></msub><annotation encoding="application/x-tex">P_j</annotation></semantics></math> 的 coefficient，cyclic count 就是：</p>
+<div class="equation"><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>c</mi><mrow><mi mathvariant="normal">P</mi><mi mathvariant="normal">B</mi></mrow></msub><mo form="prefix" stretchy="false">(</mo><mi>D</mi><mo form="postfix" stretchy="false">)</mo><mo>:=</mo><msub><mrow><mi mathvariant="normal">WMC</mi><mo>⁡</mo></mrow><mi>w</mi></msub><mo form="prefix" stretchy="false">(</mo><msubsup><mi>F</mi><mrow><mi mathvariant="normal">c</mi><mi mathvariant="normal">y</mi><mi mathvariant="normal">c</mi></mrow><mrow><mi mathvariant="normal">P</mi><mi mathvariant="normal">B</mi></mrow></msubsup><mo form="prefix" stretchy="false">(</mo><mi>D</mi><mo form="postfix" stretchy="false">)</mo><mo form="postfix" stretchy="false">)</mo><mo>=</mo><munderover><mo>∑</mo><mrow><mi>j</mi><mo>=</mo><mn>0</mn></mrow><mrow><msup><mn>4</mn><mi>n</mi></msup><mo>−</mo><mn>1</mn></mrow></munderover><msub><mi>R</mi><mi>D</mi></msub><mo form="prefix" stretchy="false">(</mo><mi>j</mi><mo>,</mo><mi>j</mi><mo form="postfix" stretchy="false">)</mo><mi>.</mi></mrow><annotation encoding="application/x-tex">
+c_{\mathrm{PB}}(D)
+:=\operatorname{WMC}_w(F_{\mathrm{cyc}}^{\mathrm{PB}}(D))
+=\sum_{j=0}^{4^n-1}R_D(j,j).
+</annotation></semantics></math></div>
+<p>这里自由取遍的是 operator basis labels，不是一个 normalized initial density matrix，所以不加入 simulation 中的 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>F</mi><mrow><mi mathvariant="normal">i</mi><mi mathvariant="normal">n</mi><mi mathvariant="normal">i</mi><mi mathvariant="normal">t</mi></mrow></msub><annotation encoding="application/x-tex">F_{\mathrm{init}}</annotation></semantics></math> 或它的 normalization。</p>
+<p><a href="#material-synthesis">Synthesis paper Theorem 5</a> 给出 exact criterion：</p>
+<div class="equation"><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>D</mi><mo>≡</mo><msup><mi>I</mi><mrow><mi>⊗</mi><mi>n</mi></mrow></msup><mspace width="1.0em"></mspace><mo>⇔</mo><mspace width="1.0em"></mspace><mo form="prefix" stretchy="false">|</mo><msub><mi>c</mi><mrow><mi mathvariant="normal">C</mi><mi mathvariant="normal">B</mi></mrow></msub><mo form="prefix" stretchy="false">(</mo><mi>D</mi><mo form="postfix" stretchy="false">)</mo><mo form="prefix" stretchy="false">|</mo><mo>=</mo><msup><mn>2</mn><mi>n</mi></msup><mspace width="1.0em"></mspace><mo>⇔</mo><mspace width="1.0em"></mspace><msub><mi>c</mi><mrow><mi mathvariant="normal">P</mi><mi mathvariant="normal">B</mi></mrow></msub><mo form="prefix" stretchy="false">(</mo><mi>D</mi><mo form="postfix" stretchy="false">)</mo><mo>=</mo><msup><mn>4</mn><mi>n</mi></msup><mi>.</mi></mrow><annotation encoding="application/x-tex">
+D\equiv I^{\otimes n}
+\quad\Longleftrightarrow\quad |c_{\mathrm{CB}}(D)|=2^n
+\quad\Longleftrightarrow\quad c_{\mathrm{PB}}(D)=4^n.
+</annotation></semantics></math></div>
+<p>它还给出 PB 的 linear-cyclic variant：只让初始 Pauli label 取 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo form="prefix" stretchy="false">{</mo><msub><mi>X</mi><mi>i</mi></msub><mo>,</mo><msub><mi>Z</mi><mi>i</mi></msub><mo>:</mo><mi>i</mi><mo>∈</mo><mo form="prefix" stretchy="false">[</mo><mi>n</mi><mo form="postfix" stretchy="false">]</mo><mo form="postfix" stretchy="false">}</mo></mrow><annotation encoding="application/x-tex">\{X_i,Z_i:i\in[n]\}</annotation></semantics></math> 中的 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>2</mn><mi>n</mi></mrow><annotation encoding="application/x-tex">2n</annotation></semantics></math> 个元素，再做同样的 cyclic constraint。这个 count 达到 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>2</mn><mi>n</mi></mrow><annotation encoding="application/x-tex">2n</annotation></semantics></math> 当且仅当 exact equivalence 成立。</p>
+<p>论文将这两种单次 WMC call 的 construction 与之前需要 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>2</mn><mi>n</mi></mrow><annotation encoding="application/x-tex">2n</annotation></semantics></math> 次 calls 的 linear encoding 联系起来。这里采用的是该论文 Theorem 5 与 Appendix A.1 的结果；linear-cyclic count 只是 exact criterion，不能直接当作下面的 Jamiołkowski fidelity。</p>
+</section><section class="post-section"><h4 id="fidelity">8.3 从 Cyclic Count 到 Fidelity</h4>
+<p>真正把 exact 与 approximate 连起来的是 <a href="#material-synthesis">synthesis paper Theorem 10</a>。保持 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>D</mi><mo>=</mo><msub><mi>U</mi><msub><mi>C</mi><mn>2</mn></msub></msub><msubsup><mi>U</mi><msub><mi>C</mi><mn>1</mn></msub><mo>†</mo></msubsup></mrow><annotation encoding="application/x-tex">D=U_{C_2}U_{C_1}^\dagger</annotation></semantics></math>，有：</p>
+<div class="equation"><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mrow><mi mathvariant="normal">Fid</mi><mo>⁡</mo></mrow><mi>J</mi></msub><mo form="prefix" stretchy="false">(</mo><msub><mi>U</mi><msub><mi>C</mi><mn>1</mn></msub></msub><mo>,</mo><msub><mi>U</mi><msub><mi>C</mi><mn>2</mn></msub></msub><mo form="postfix" stretchy="false">)</mo><mo>=</mo><mfrac><mrow><mo form="prefix" stretchy="false">|</mo><mrow><mi mathvariant="normal">Tr</mi><mo>⁡</mo></mrow><mo form="prefix" stretchy="false">(</mo><mi>D</mi><mo form="postfix" stretchy="false">)</mo><msup><mo form="prefix" stretchy="false">|</mo><mn>2</mn></msup></mrow><msup><mn>4</mn><mi>n</mi></msup></mfrac><mo>=</mo><mfrac><mrow><mo form="prefix" stretchy="false">|</mo><msub><mi>c</mi><mrow><mi mathvariant="normal">C</mi><mi mathvariant="normal">B</mi></mrow></msub><mo form="prefix" stretchy="false">(</mo><mi>D</mi><mo form="postfix" stretchy="false">)</mo><msup><mo form="prefix" stretchy="false">|</mo><mn>2</mn></msup></mrow><msup><mn>4</mn><mi>n</mi></msup></mfrac><mo>=</mo><mfrac><mrow><msub><mi>c</mi><mrow><mi mathvariant="normal">P</mi><mi mathvariant="normal">B</mi></mrow></msub><mo form="prefix" stretchy="false">(</mo><mi>D</mi><mo form="postfix" stretchy="false">)</mo></mrow><msup><mn>4</mn><mi>n</mi></msup></mfrac><mi>.</mi></mrow><annotation encoding="application/x-tex">
+\operatorname{Fid}_J(U_{C_1},U_{C_2})
+=\frac{|\operatorname{Tr}(D)|^2}{4^n}
+=\frac{|c_{\mathrm{CB}}(D)|^2}{4^n}
+=\frac{c_{\mathrm{PB}}(D)}{4^n}.
+</annotation></semantics></math></div>
+<p>Theorem 10 的陈述使用 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msup><mi>U</mi><mo>†</mo></msup><mi>V</mi></mrow><annotation encoding="application/x-tex">U^\dagger V</annotation></semantics></math>；这里沿用 §4 的 candidate-times-target-inverse，因为 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mrow><mi mathvariant="normal">Tr</mi><mo>⁡</mo></mrow><mo form="prefix" stretchy="false">(</mo><msup><mi>U</mi><mo>†</mo></msup><mi>V</mi><mo form="postfix" stretchy="false">)</mo><mo>=</mo><mrow><mi mathvariant="normal">Tr</mi><mo>⁡</mo></mrow><mo form="prefix" stretchy="false">(</mo><mi>V</mi><msup><mi>U</mi><mo>†</mo></msup><mo form="postfix" stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">\operatorname{Tr}(U^\dagger V)=\operatorname{Tr}(VU^\dagger)</annotation></semantics></math>。这就是将定理用于同一个 composition order 的理由。</p>
+<p>CB count 可能是 complex，需要取模平方；PB count 已经是 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msup><mn>4</mn><mi>n</mi></msup><annotation encoding="application/x-tex">4^n</annotation></semantics></math> 倍的 fidelity，只需 normalization。不能把两种 count 的后处理混用。</p>
+<p>于是 exact checking 和 approximate checking 都可以用 cyclic encoding，只是最后判断 count 是否对应 fidelity <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mn>1</mn><annotation encoding="application/x-tex">1</annotation></semantics></math>，或者至少 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1</mn><mo>−</mo><mi>ε</mi></mrow><annotation encoding="application/x-tex">1-\varepsilon</annotation></semantics></math>。这一结果也准备好了 synthesis 所需要的评价函数。</p>
+</section><section class="post-section"><h3 id="gate-selection">9. Synthesis：把 Circuit 本身变成 Boolean Choices</h3>
+<p>到这里，circuit 一直是给定的。Synthesis 把问题反过来：给定想实现的 behaviour，寻找实现它的 circuit。</p>
+<p>按 <a href="#material-synthesis">synthesis paper Problem 4</a>，输入是 target circuit <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>C</mi><mn>1</mn></msub><annotation encoding="application/x-tex">C_1</annotation></semantics></math> 或其 unitary、有限 target gate set <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>𝒢</mi><annotation encoding="application/x-tex">\mathcal G</annotation></semantics></math>，以及 approximation parameter <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>ε</mi><annotation encoding="application/x-tex">\varepsilon</annotation></semantics></math>。目标是在 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>𝒢</mi><annotation encoding="application/x-tex">\mathcal G</annotation></semantics></math> 中找 depth 最小的 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>C</mi><mn>2</mn></msub><annotation encoding="application/x-tex">C_2</annotation></semantics></math>，满足：</p>
+<div class="equation"><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>U</mi><msub><mi>C</mi><mn>2</mn></msub></msub><msub><mo>≃</mo><mi>ε</mi></msub><msub><mi>U</mi><msub><mi>C</mi><mn>1</mn></msub></msub><mi>.</mi></mrow><annotation encoding="application/x-tex">
+U_{C_2}\simeq_\varepsilon U_{C_1}.
+</annotation></semantics></math></div>
+<p>先固定一个 candidate depth <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>d</mi><annotation encoding="application/x-tex">d</annotation></semantics></math>。与前面按单个 gate 编号不同，这里的 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>t</mi><annotation encoding="application/x-tex">t</annotation></semantics></math> 表示 parallel gate layer：同一层中，一个 qubit 只能参与一个 gate。</p>
+<p>为每个单 qubit gate choice 引入：</p>
+<div class="equation"><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>p</mi><mrow><mi>G</mi><mo>,</mo><mi>i</mi><mo>,</mo><mi>t</mi></mrow></msub><mo>=</mo><mn>1</mn><mspace width="1.0em"></mspace><mo>⇔</mo><mspace width="1.0em"></mspace><mrow><mtext mathvariant="normal">layer </mtext><mspace width="0.333em"></mspace></mrow><mi>t</mi><mrow><mspace width="0.333em"></mspace><mtext mathvariant="normal"> 在 qubit </mtext><mspace width="0.333em"></mspace></mrow><mi>i</mi><mrow><mspace width="0.333em"></mspace><mtext mathvariant="normal"> 上选择 </mtext><mspace width="0.333em"></mspace></mrow><mi>G</mi><mi>.</mi></mrow><annotation encoding="application/x-tex">
+p_{G,i,t}=1
+\quad\Longleftrightarrow\quad
+\text{layer }t\text{ 在 qubit }i\text{ 上选择 }G.
+</annotation></semantics></math></div>
+<p>例如一个 qubit、可选 gates 为 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo form="prefix" stretchy="false">{</mo><mi>I</mi><mo>,</mo><mi>H</mi><mo>,</mo><mi>T</mi><mo form="postfix" stretchy="false">}</mo></mrow><annotation encoding="application/x-tex">\{I,H,T\}</annotation></semantics></math> 时，<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>p</mi><mrow><mi>I</mi><mo>,</mo><mn>0</mn><mo>,</mo><mi>t</mi></mrow></msub><mo>,</mo><msub><mi>p</mi><mrow><mi>H</mi><mo>,</mo><mn>0</mn><mo>,</mo><mi>t</mi></mrow></msub><mo>,</mo><msub><mi>p</mi><mrow><mi>T</mi><mo>,</mo><mn>0</mn><mo>,</mo><mi>t</mi></mrow></msub></mrow><annotation encoding="application/x-tex">p_{I,0,t},p_{H,0,t},p_{T,0,t}</annotation></semantics></math> 中恰好一个为真。选择 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>H</mi><annotation encoding="application/x-tex">H</annotation></semantics></math> 时，激活的就是之前的 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>F</mi><mi>H</mi></msub><annotation encoding="application/x-tex">F_H</annotation></semantics></math>：</p>
+<div class="equation"><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>p</mi><mrow><mi>H</mi><mo>,</mo><mn>0</mn><mo>,</mo><mi>t</mi></mrow></msub><mo>⇒</mo><msub><mi>F</mi><mi>H</mi></msub><mo form="prefix" stretchy="false">(</mo><msup><mi>q</mi><mi>t</mi></msup><mo>,</mo><msup><mi>q</mi><mrow><mi>t</mi><mo>+</mo><mn>1</mn></mrow></msup><mo>,</mo><msubsup><mi>𝐮</mi><mi>H</mi><mi>t</mi></msubsup><mo form="postfix" stretchy="false">)</mo><mi>.</mi></mrow><annotation encoding="application/x-tex">
+p_{H,0,t}\Rightarrow F_H(q^t,q^{t+1},\mathbf u_H^t).
+</annotation></semantics></math></div>
+<p>Multi-qubit gates 使用相应的 selection variables，例如 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>p</mi><mrow><mi>C</mi><mi>X</mi><mo>,</mo><mi>i</mi><mo>,</mo><mi>j</mi><mo>,</mo><mi>t</mi></mrow></msub><annotation encoding="application/x-tex">p_{CX,i,j,t}</annotation></semantics></math>，其中 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>i</mi><annotation encoding="application/x-tex">i</annotation></semantics></math> 是 control、<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>j</mi><annotation encoding="application/x-tex">j</annotation></semantics></math> 是 target。Exactly-one constraints 必须对一个 qubit 上所有可能占用它的 gates 一起约束，包括它作为 control 或 target 的 choices。这样才能排除同一层中相互重叠的 gates。Identity 也作为一个 choice，让某些 qubits 可以空闲。</p>
+<p>这些是 synthesis paper §4, Eq. 7–11 的 layer encoding。固定所有 selection variables，就确定了每层的合法 gates，因而确定一个 candidate circuit <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>C</mi><mn>2</mn></msub><annotation encoding="application/x-tex">C_2</annotation></semantics></math>。</p>
+<p>这里沿用的 weighted gate encoding 还必须保证：未被选择的 gate auxiliaries 不会额外贡献 weights 或重复 models。上面的 implication 是说明 gate selection 的结构；把它实现为完整 weighted CNF 时，这些 bookkeeping 同样属于语义的一部分。</p>
+</section><section class="post-section"><h3 id="maxwmc">10. 为什么是 Maximum Weighted Model Counting？</h3>
+<p>把 variables 分成两组。为避免与 Pauli operators <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>X</mi><mo>,</mo><mi>Y</mi></mrow><annotation encoding="application/x-tex">X,Y</annotation></semantics></math> 混淆，用花体表示变量集合：</p>
+<div class="equation"><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>𝒳</mi><mo>=</mo><mo form="prefix" stretchy="false">{</mo><mtext mathvariant="normal">gate-selection variables</mtext><mo form="postfix" stretchy="false">}</mo><mo>,</mo><mspace width="2.0em"></mspace><mi>𝒴</mi><mo>=</mo><mo form="prefix" stretchy="false">{</mo><mtext mathvariant="normal">basis/path/auxiliary variables</mtext><mo form="postfix" stretchy="false">}</mo><mi>.</mi></mrow><annotation encoding="application/x-tex">
+\mathcal X=\{\text{gate-selection variables}\},
+\qquad
+\mathcal Y=\{\text{basis/path/auxiliary variables}\}.
+</annotation></semantics></math></div>
+<p>先编码固定的 target inverse，再接上 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>d</mi><annotation encoding="application/x-tex">d</annotation></semantics></math> 个待选择的 layers，最后要求首尾 basis labels 相同。采用 PB cyclic encoding，可把 synthesis formula 写成：</p>
+<div class="equation"><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>F</mi><mrow><mrow><mi mathvariant="normal">s</mi><mi mathvariant="normal">y</mi><mi mathvariant="normal">n</mi></mrow><mo>,</mo><mi>d</mi></mrow></msub><mo form="prefix" stretchy="false">(</mo><mi>𝒳</mi><mo>,</mo><mi>𝒴</mi><mo form="postfix" stretchy="false">)</mo><mo>=</mo><msub><mi>F</mi><msubsup><mi>C</mi><mn>1</mn><mo>†</mo></msubsup></msub><mo form="prefix" stretchy="false">(</mo><msub><mi>𝐪</mi><mrow><mi mathvariant="normal">i</mi><mi mathvariant="normal">n</mi></mrow></msub><mo>,</mo><msup><mi>𝐪</mi><mn>0</mn></msup><mo form="postfix" stretchy="false">)</mo><mo>∧</mo><munderover><mo>⋀</mo><mrow><mi>t</mi><mo>=</mo><mn>0</mn></mrow><mrow><mi>d</mi><mo>−</mo><mn>1</mn></mrow></munderover><msub><mi>F</mi><mrow><mrow><mi mathvariant="normal">l</mi><mi mathvariant="normal">a</mi><mi mathvariant="normal">y</mi><mi mathvariant="normal">e</mi><mi mathvariant="normal">r</mi></mrow><mo>,</mo><mi>𝒢</mi></mrow></msub><mo form="prefix" stretchy="false">(</mo><msup><mi>𝐪</mi><mi>t</mi></msup><mo>,</mo><msup><mi>𝐪</mi><mrow><mi>t</mi><mo>+</mo><mn>1</mn></mrow></msup><mo>,</mo><msup><mi>𝐩</mi><mi>t</mi></msup><mo form="postfix" stretchy="false">)</mo><mo>∧</mo><msub><mi>F</mi><mi>I</mi></msub><mo form="prefix" stretchy="false">(</mo><msub><mi>𝐪</mi><mrow><mi mathvariant="normal">i</mi><mi mathvariant="normal">n</mi></mrow></msub><mo>,</mo><msup><mi>𝐪</mi><mi>d</mi></msup><mo form="postfix" stretchy="false">)</mo><mi>.</mi></mrow><annotation encoding="application/x-tex">
+F_{\mathrm{syn},d}(\mathcal X,\mathcal Y)=
+F_{C_1^\dagger}(\mathbf q_{\mathrm{in}},\mathbf q^0)
+\land\bigwedge_{t=0}^{d-1}
+F_{\mathrm{layer},\mathcal G}(\mathbf q^t,\mathbf q^{t+1},\mathbf p^t)
+\land F_I(\mathbf q_{\mathrm{in}},\mathbf q^d).
+</annotation></semantics></math></div>
+<p>这对应 <a href="#material-synthesis">synthesis paper Eq. 12</a>。固定一个 gate assignment <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>ξ</mi><annotation encoding="application/x-tex">\xi</annotation></semantics></math> 后，candidate <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>C</mi><mn>2</mn></msub><mo form="prefix" stretchy="false">(</mo><mi>ξ</mi><mo form="postfix" stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">C_2(\xi)</annotation></semantics></math> 就固定了。内部 WMC 负责评价它：</p>
+<div class="equation"><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>S</mi><mi>d</mi></msub><mo form="prefix" stretchy="false">(</mo><mi>ξ</mi><mo form="postfix" stretchy="false">)</mo><mo>=</mo><munder><mo>∑</mo><mrow><mi>η</mi><mo>:</mo><mspace width="0.167em"></mspace><mo form="prefix" stretchy="false">(</mo><mi>ξ</mi><mo>,</mo><mi>η</mi><mo form="postfix" stretchy="false">)</mo><mo>⊨</mo><msub><mi>F</mi><mrow><mrow><mi mathvariant="normal">s</mi><mi mathvariant="normal">y</mi><mi mathvariant="normal">n</mi></mrow><mo>,</mo><mi>d</mi></mrow></msub></mrow></munder><mi>W</mi><mo form="prefix" stretchy="false">(</mo><mi>ξ</mi><mo>,</mo><mi>η</mi><mo form="postfix" stretchy="false">)</mo><mo>=</mo><msup><mn>4</mn><mi>n</mi></msup><msub><mrow><mi mathvariant="normal">Fid</mi><mo>⁡</mo></mrow><mi>J</mi></msub><mo form="prefix" stretchy="false">(</mo><msub><mi>U</mi><msub><mi>C</mi><mn>1</mn></msub></msub><mo>,</mo><msub><mi>U</mi><mrow><msub><mi>C</mi><mn>2</mn></msub><mo form="prefix" stretchy="false">(</mo><mi>ξ</mi><mo form="postfix" stretchy="false">)</mo></mrow></msub><mo form="postfix" stretchy="false">)</mo><mi>.</mi></mrow><annotation encoding="application/x-tex">
+S_d(\xi)=
+\sum_{\eta:\,(\xi,\eta)\models F_{\mathrm{syn},d}}
+W(\xi,\eta)
+=4^n\operatorname{Fid}_J(U_{C_1},U_{C_2(\xi)}).
+</annotation></semantics></math></div>
+<p>Gate-selection variables 本身的 weights 取 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mn>1</mn><annotation encoding="application/x-tex">1</annotation></semantics></math>。内层对 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>𝒴</mi><annotation encoding="application/x-tex">\mathcal Y</annotation></semantics></math> 求和；外层则要选择一个最好的 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>ξ</mi><annotation encoding="application/x-tex">\xi</annotation></semantics></math>。用 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>𝒜</mi><mi>d</mi></msub><annotation encoding="application/x-tex">\mathcal A_d</annotation></semantics></math> 表示满足 valid-layer constraints 的 gate assignments，根据论文 §2.2 的 Definition 1，Maximum Weighted Model Counting 在这里就是：</p>
+<div class="equation"><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msup><mi>ξ</mi><mo>⋆</mo></msup><mo>∈</mo><munder><mi mathvariant="normal">arg max</mi><mrow><mi>ξ</mi><mo>∈</mo><msub><mi>𝒜</mi><mi>d</mi></msub></mrow></munder><msub><mi>S</mi><mi>d</mi></msub><mo form="prefix" stretchy="false">(</mo><mi>ξ</mi><mo form="postfix" stretchy="false">)</mo><mo>,</mo><mspace width="2.0em"></mspace><msubsup><mi>s</mi><mi>d</mi><mo>⋆</mo></msubsup><mo>=</mo><munder><mi mathvariant="normal">max</mi><mrow><mi>ξ</mi><mo>∈</mo><msub><mi>𝒜</mi><mi>d</mi></msub></mrow></munder><munder><mo>∑</mo><mrow><mi>η</mi><mo>:</mo><mspace width="0.167em"></mspace><mo form="prefix" stretchy="false">(</mo><mi>ξ</mi><mo>,</mo><mi>η</mi><mo form="postfix" stretchy="false">)</mo><mo>⊨</mo><msub><mi>F</mi><mrow><mrow><mi mathvariant="normal">s</mi><mi mathvariant="normal">y</mi><mi mathvariant="normal">n</mi></mrow><mo>,</mo><mi>d</mi></mrow></msub></mrow></munder><mi>W</mi><mo form="prefix" stretchy="false">(</mo><mi>ξ</mi><mo>,</mo><mi>η</mi><mo form="postfix" stretchy="false">)</mo><mi>.</mi></mrow><annotation encoding="application/x-tex">
+\xi^\star\in\operatorname*{arg\,max}_{\xi\in\mathcal A_d}S_d(\xi),
+\qquad
+s_d^\star=\max_{\xi\in\mathcal A_d}
+\sum_{\eta:\,(\xi,\eta)\models F_{\mathrm{syn},d}}W(\xi,\eta).
+</annotation></semantics></math></div>
+<p>这就是 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mrow><mi mathvariant="normal">max</mi><mo>⁡</mo></mrow><mi>𝒳</mi></msub><msub><mo>∑</mo><mi>𝒴</mi></msub></mrow><annotation encoding="application/x-tex">\max_{\mathcal X}\sum_{\mathcal Y}</annotation></semantics></math> 的结构。Exactly-one constraints 限定合法 candidates，counter 返回一个最优 gate assignment 及其 count。</p>
+<p>所以 WMC evaluates a fixed circuit；MaxWMC searches over circuits while evaluating each one。外层不能也变成 sum，否则只是把不同 circuits 的 scores 混在一起；内层也不能变成 max，否则只留下某条 path，丢掉 interference。</p>
+<p>这里选择 PB cyclic 作为主线，是因为它的完整 inner count 是 real fidelity score。即使中间 contributions 有负号，合法 candidate 的 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>S</mi><mi>d</mi></msub><mo form="prefix" stretchy="false">(</mo><mi>ξ</mi><mo form="postfix" stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">S_d(\xi)</annotation></semantics></math> 仍在 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo form="prefix" stretchy="false">[</mo><mn>0</mn><mo>,</mo><msup><mn>4</mn><mi>n</mi></msup><mo form="postfix" stretchy="false">]</mo></mrow><annotation encoding="application/x-tex">[0,4^n]</annotation></semantics></math>。CB 的 cyclic count 则可能为 complex，目标应是其模平方对应的 fidelity，不能把“最大 complex number”当成普通实数 MWMC 的定义。</p>
+</section><section class="post-section"><h3 id="depth-optimality">11. Exact、Approximate 和 Depth-optimal Synthesis</h3>
+<p>固定 depth 的 MaxWMC 只解决一件事：在这个 depth 内，哪个 candidate 的 fidelity 最高？Depth optimality 还需要外层逐步增大 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>d</mi><annotation encoding="application/x-tex">d</annotation></semantics></math>。</p>
+<p>对于上面的 PB cyclic encoding，exact synthesis 的判断是：</p>
+<div class="equation"><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msubsup><mi>s</mi><mi>d</mi><mo>⋆</mo></msubsup><mo>=</mo><msup><mn>4</mn><mi>n</mi></msup><mi>.</mi></mrow><annotation encoding="application/x-tex">
+s_d^\star=4^n.
+</annotation></semantics></math></div>
+<p>这是 <a href="#material-synthesis">synthesis paper Proposition 8</a> 的 PB cyclic 情况。若只做 exact synthesis，也可以使用 PB linear-cyclic encoding，把对应 count 的目标改成 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>2</mn><mi>n</mi></mrow><annotation encoding="application/x-tex">2n</annotation></semantics></math>。</p>
+<p>Approximate synthesis 则按照 Definition 3 与 Theorem 10 检查：</p>
+<div class="equation"><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mfrac><msubsup><mi>s</mi><mi>d</mi><mo>⋆</mo></msubsup><msup><mn>4</mn><mi>n</mi></msup></mfrac><mo>≥</mo><mn>1</mn><mo>−</mo><mi>ε</mi><mi>.</mi></mrow><annotation encoding="application/x-tex">
+\frac{s_d^\star}{4^n}\geq1-\varepsilon.
+</annotation></semantics></math></div>
+<p>从 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>d</mi><mo>=</mo><mn>0</mn></mrow><annotation encoding="application/x-tex">d=0</annotation></semantics></math> 的 empty circuit 开始，然后尝试 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>d</mi><mo>=</mo><mn>1</mn><mo>,</mo><mn>2</mn><mo>,</mo><mi>…</mi></mrow><annotation encoding="application/x-tex">d=1,2,\ldots</annotation></semantics></math>。当某个 depth 首次达到要求时，从 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msup><mi>ξ</mi><mo>⋆</mo></msup><annotation encoding="application/x-tex">\xi^\star</annotation></semantics></math> 读出 gates，就得到目标 gate set 下的 minimum-depth circuit。这个结论要求之前更小的 depths 已被完整排除；某一层搜索 timeout，并不能证明该层没有解。<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>ε</mi><mo>=</mo><mn>0</mn></mrow><annotation encoding="application/x-tex">\varepsilon=0</annotation></semantics></math> 时还要求 target 能被所选 gate set 精确实现，否则不断增加 depth 不保证终止。</p>
+<p>例如用 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo form="prefix" stretchy="false">{</mo><mi>I</mi><mo>,</mo><mi>H</mi><mo>,</mo><mi>T</mi><mo form="postfix" stretchy="false">}</mo></mrow><annotation encoding="application/x-tex">\{I,H,T\}</annotation></semantics></math> 合成单 qubit target <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>S</mi><annotation encoding="application/x-tex">S</annotation></semantics></math>。Depth <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mn>0</mn><annotation encoding="application/x-tex">0</annotation></semantics></math> 或 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mn>1</mn><annotation encoding="application/x-tex">1</annotation></semantics></math> 没有 exact solution；depth <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mn>2</mn><annotation encoding="application/x-tex">2</annotation></semantics></math> 可以在两层都选择 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>T</mi><annotation encoding="application/x-tex">T</annotation></semantics></math>，得到 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msup><mi>T</mi><mn>2</mn></msup><mo>=</mo><mi>S</mi></mrow><annotation encoding="application/x-tex">T^2=S</annotation></semantics></math>。这是 <a href="#material-synthesis">synthesis paper Example 6 与 Example 9</a> 中的 gate identity。它展示的是 exact minimum-depth search，不需要把每层的 candidate scores 都列出来。</p>
+<p>如果允许 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>ε</mi><mo>&gt;</mo><mn>0</mn></mrow><annotation encoding="application/x-tex">\varepsilon&gt;0</annotation></semantics></math>，一个更浅的 candidate 达到 fidelity threshold 就可以停止。因而这有两层不同的优化：fixed depth 内比较 fidelity；across depths 找第一个满足 criterion 的 depth。Maximum fidelity 和 minimum depth 不是同一个 objective。</p>
+<p>关于原文的一个记号细节：所用 synthesis paper v2 的 Proposition 11 中，CB 阈值写成 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msup><mn>2</mn><mrow><mi>−</mi><mi>n</mi></mrow></msup><mo form="prefix" stretchy="false">|</mo><mi>c</mi><mo form="prefix" stretchy="false">|</mo><mo>&gt;</mo><mn>1</mn><mo>−</mo><mi>ε</mi></mrow><annotation encoding="application/x-tex">2^{-n}|c|&gt;1-\varepsilon</annotation></semantics></math>，与 Definition 3、Theorem 10 的 squared-fidelity 定义不一致。本文统一使用后两者，因此 CB 的 threshold 应写为 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msup><mn>4</mn><mrow><mi>−</mi><mi>n</mi></mrow></msup><mo form="prefix" stretchy="false">|</mo><mi>c</mi><msup><mo form="prefix" stretchy="false">|</mo><mn>2</mn></msup><mo>≥</mo><mn>1</mn><mo>−</mo><mi>ε</mi></mrow><annotation encoding="application/x-tex">4^{-n}|c|^2\geq1-\varepsilon</annotation></semantics></math>，PB 则是 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msup><mn>4</mn><mrow><mi>−</mi><mi>n</mi></mrow></msup><mi>c</mi><mo>≥</mo><mn>1</mn><mo>−</mo><mi>ε</mi></mrow><annotation encoding="application/x-tex">4^{-n}c\geq1-\varepsilon</annotation></semantics></math>。上面的算法解释对应 Proposition 11 的逐层搜索思路，数值判据按这个统一的 fidelity 定义计算。</p>
+</section><section class="post-section"><h3 id="representation-limits">12. 同一个 Representation，以及它的限制</h3>
+<p>从 state 到 synthesis，变化的是哪些 choices 已经固定，以及最后对哪些 variables 求和或优化：</p>
+<div aria-label="Quantum reasoning tasks" class="table-scroll" role="region" tabindex="0"><table>
+<colgroup>
+<col style="width: 33%"/>
+<col style="width: 33%"/>
+<col style="width: 33%"/>
+</colgroup>
+<thead>
+<tr>
+<th scope="col">Task</th>
+<th scope="col">固定什么</th>
+<th scope="col">计算或搜索什么</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Simulation</td>
+<td>Circuit、input、measurement query</td>
+<td>与 outcome 对应的 weighted sum</td>
+</tr>
+<tr>
+<td>Verification 视角</td>
+<td>Circuit 与 specification</td>
+<td>所需 quantum quantity 是否满足条件</td>
+</tr>
+<tr>
+<td>Equivalence</td>
+<td>两个 circuits</td>
+<td>Composed circuit 的 cyclic count / fidelity</td>
+</tr>
+<tr>
+<td>Synthesis</td>
+<td>Target、gate set、当前 depth</td>
+<td>使 inner count 最优的 gate assignment</td>
+</tr>
+</tbody>
+</table></div>
+<p>Gate relation 仍然承载局部 semantics，composition 仍然把局部贡献乘起来，WMC 仍然把合法贡献加起来。Synthesis 多出来的，就是 circuit structure 本身也可以由 Boolean variables 决定。</p>
+<p><a href="#material-synthesis">Synthesis paper §7</a> 将方法实现为 Quokka#-syn，并扩展 d4Max 来支持 PB 的 negative weights 和 CB 的 complex weights。实验展示了 exact 与 approximate synthesis 的可行性，也显示 qubit 数和 depth 增长后，求解很快变得困难。与其他 synthesis 工具的比较还受到平台、gate set 和 benchmark 差异的限制，不能据此给出普遍的性能排序。</p>
+<p>Negative weights 也会影响 solver 内部的推理。论文 §7.1 说明，原 d4Max 的一些 upper-bound pruning 和 intermediate approximation 优化在扩展后被关闭，当前实现因此失去了部分效率。一个紧凑的 encoding，并不会自动带来一个容易求解的 optimization problem。</p>
+<p>论文 §8 提出的改进方向包括：跨 depth 的 incremental solving，更充分利用 CNF 中的 XOR structure，以及 symmetry 处理。T-count optimization 也被列为后续目标；本文讨论的 depth-optimality 本身并不保证 T-count 最小。</p>
+<p>到这里，可以把接下来的问题放在 solver 一侧：这些 weighted formulas 已经保留了所需的 quantum semantics，怎样更有效地计算它们？</p>
+</section><p id="material-simulation" style="font-size: 0.875em;">Material: Jingyi Mei, Marcello Bonsangue and Alfons Laarman, <em>Simulating Quantum Circuits by Model Counting</em> · <a href="https://arxiv.org/abs/2403.07197v1">arXiv:2403.07197v1</a></p>
+<p id="material-synthesis" style="font-size: 0.875em;">Material: Dekel Zak, Jingyi Mei, Jean-Marie Lagniez and Alfons Laarman, <em>Reducing Quantum Circuit Synthesis to #SAT</em> · <a href="https://arxiv.org/abs/2508.00416v2">arXiv:2508.00416v2</a> · <a href="https://doi.org/10.4230/LIPIcs.CP.2025.39">CP 2025</a></p>
+</article>
+<nav class="page-navigation"><a href="../index.html">Home</a> / <a href="./index.html">Blog</a></nav>
+</main>
+<div class="rabbits">
+<img alt="Tudou and Nuomi resting together" src="../土豆%20%26%20糯米/rabbits-together.jpeg"/>
+</div>
+</body>
+</html>

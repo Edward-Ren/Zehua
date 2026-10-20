@@ -4,7 +4,7 @@
 
 - `index.html`：博客目录，修改这里的文章标题、日期和链接。
 - `a-first-note.html`：第一篇文章。
-- `notes-on-learning.html`：第二篇文章。
+- `quantum-circuits-as-weighted-boolean-formulas.html`：第二篇文章。
 - `small-reflections.html`：第三篇文章。
 
 ## 修改标题和日期
