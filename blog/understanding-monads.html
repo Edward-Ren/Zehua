@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>理解 Monad：Kleisli Composition、Bind 与 Join | 泽华Zehua</title>
+  <link rel="stylesheet" href="../style.css" />
+  <style>
+    html { scroll-behavior: smooth; }
+    .monad-post { line-height: 1.65; }
+    .monad-post .post-title, .monad-post h3, .monad-post h4 { scroll-margin-top: 20px; }
+    .monad-post .post-subtitle { font-size: 0.9em; color: #41483b; }
+    .monad-post .post-toc { margin: 28px 0; }
+    .monad-post .post-toc h3 { font-size: 1em; margin-bottom: 8px; }
+    .monad-post .post-toc ul { padding: 0; margin: 0; list-style: none; }
+    .monad-post .post-toc a, .monad-post .post-toc a:visited { color: #0000ee; }
+    .monad-post a:focus-visible { outline: 2px solid currentColor; outline-offset: 3px; }
+    .monad-post h4 { font-size: 1em; margin: 24px 0 8px; }
+    .monad-post code { font-family: Consolas, "Courier New", monospace; font-size: 0.9em; overflow-wrap: anywhere; }
+    .monad-post pre { overflow-x: auto; padding: 12px; border-left: 2px solid #aebba0; background: #e7edd9; line-height: 1.5; }
+    .monad-post pre code { overflow-wrap: normal; }
+    .monad-post .equation { margin: 16px 0; overflow-x: auto; overflow-y: hidden; padding: 6px 0; }
+    .monad-post math { font-family: "Cambria Math", "STIX Two Math", math; font-size: 1.05em; line-height: normal; }
+    .monad-post .equation math { margin: 0 auto; }
+    .monad-post figure { margin: 24px 0; }
+    .monad-post .diagram-scroll { overflow-x: auto; padding: 4px 0; }
+    .monad-post svg { display: block; width: 100%; height: auto; margin: auto; max-width: 360px; }
+    .monad-post svg text { fill: #293326; font-family: "Cambria Math", Georgia, serif; font-size: 28px; text-anchor: middle; font-style: italic; }
+    .monad-post svg .label { font-size: 22px; }
+    .monad-post svg .edge { fill: none; stroke: #596650; stroke-width: 1.6; }
+    .monad-post figcaption { margin-top: 8px; font-size: 0.875em; color: #41483b; }
+    .monad-post .table-scroll { overflow-x: auto; margin: 16px 0; }
+    .monad-post table { border-collapse: collapse; width: 100%; font-size: 0.9em; }
+    .monad-post table code { overflow-wrap: normal; }
+    .monad-post th, .monad-post td { border-bottom: 1px solid #aebba0; padding: 8px; text-align: left; vertical-align: top; }
+    .monad-post .material { font-size: 0.875em; }
+    @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+  </style>
+</head>
+<body>
+  <main>
+  <article class="monad-post">
+<h2 class="post-title" id="article-title">理解 Monad：Kleisli Composition、Bind 与 Join</h2>
+<p class="post-subtitle" lang="en">Understanding Monads: Kleisli Composition, Bind, and Join</p>
+<p class="post-date"><time datetime="2026-10-28">2026-10-28</time></p>
+<nav class="post-toc" aria-labelledby="toc-title">
+<h3 id="toc-title">Table of Contents</h3>
+<ul>
+<li><a href="#composition">1. Monad：从函数组合的问题开始</a></li>
+<li><a href="#kleisli">2. Kleisli Category 从哪里来？</a></li>
+<li><a href="#operations">3. Monad 的五个核心操作</a></li>
+<li><a href="#fmap-bind-join">4. Functor、Bind 与 Join：先看清类型</a></li>
+<li><a href="#maybe">5. Maybe：让失败沿着计算传播</a></li>
+<li><a href="#writer">6. Writer：结果与日志一起组合</a></li>
+<li><a href="#do-notation">7. do Notation：把 Bind 写得更直观</a></li>
+<li><a href="#laws">8. Monad Laws：组合为什么可靠？</a></li>
+<li><a href="#mathematical-definition">9. 数学定义：Endofunctor、Unit 与 Multiplication</a></li>
+<li><a href="#arrows">10. 从 Monad 走向 Arrow</a></li>
+<li><a href="#syntax">附：Haskell 符号速查</a></li>
+</ul>
+</nav>
+
+<section class="post-section" aria-labelledby="composition">
+<h3 id="composition">1. Monad：从函数组合的问题开始</h3>
+<p>普通函数的组合只需要让输出和输入的类型接上：</p>
+<pre><code class="language-haskell">f :: a -&gt; b
+g :: b -&gt; c
+
+g . f :: a -&gt; c
+-- (g . f) x = g (f x)</code></pre>
+<p><code>g . f</code> 表示先执行 f，再执行 g。例如先加一、再乘二，<code>((* 2) . (+ 1)) 3</code> 得到 8。但如果一个计算除了产生结果，还可能失败、记录日志，或者改变传递中的状态，类型就变了：</p>
+<pre><code class="language-haskell">f :: a -&gt; m b
+g :: b -&gt; m c</code></pre>
+<p>这里 <code>m</code> 是类型构造器，<code>m a</code> 是带有某种计算上下文的结果类型。它不一定是实际装着一个 a 的容器：<code>Maybe a</code> 可能没有结果，<code>IO a</code> 则描述一个执行后可产生 a 的输入输出计算。现在 f 返回 <code>m b</code>，g 却需要 b，普通的 <code>g . f</code> 因此不能直接使用。</p>
+<p><strong>Monad 提供一种满足规律的组合方式，把这些带上下文的计算接起来。</strong>不同实例决定组合时如何处理上下文：Maybe 传播可能的失败，List 考虑多个可能结果，Writer 累积日志，State 传递状态，IO 顺序组织输入输出计算。它们的共同点是 composition，而不是某一种特定的副作用。</p>
+<p>这也接上了<a href="./a-first-note.html#semantics-category-theory">第一篇的 error propagation 问题</a>：业务函数可以专注于自己的一步，组合规则负责把额外结构贯穿整个计算。接下来先明确，这种“组合”发生在哪个 category 里。</p>
+</section>
+
+<section class="post-section" aria-labelledby="kleisli">
+<h3 id="kleisli">2. Kleisli Category 从哪里来？</h3>
+<p>一个 category 有 objects、objects 之间的 morphisms、每个 object 上的 identity，以及可首尾连接的 morphisms 的 composition。以 Set 为例，objects 是集合，morphisms 是函数，identity 是 <code>id x = x</code>，composition 就是普通函数组合。它们满足：</p>
+<div class="equation"><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><mrow><msub><mi>id</mi><mi>B</mi></msub><mo>∘</mo><mi>f</mi><mo>=</mo><mi>f</mi><mo>=</mo><mi>f</mi><mo>∘</mo><msub><mi>id</mi><mi>A</mi></msub></mrow></math></div>
+<div class="equation"><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><mrow><mi>h</mi><mo>∘</mo><mo>(</mo><mi>g</mi><mo>∘</mo><mi>f</mi><mo>)</mo><mo>=</mo><mo>(</mo><mi>h</mi><mo>∘</mo><mi>g</mi><mo>)</mo><mo>∘</mo><mi>f</mi></mrow></math></div>
+<p>第一条说 identity 不改变箭头，第二条说改变组合的括号不改变结果。这里 f 从 A 到 B，g 从 B 到 C，h 从 C 到 D。Haskell 类型和函数可以帮助理解这些结构；下面的数学定义则是在给定的范畴 𝒞 中陈述。</p>
+<p>固定一个 Monad M 后，<code>f :: a -&gt; m b</code> 可以有两种看法。在原范畴 𝒞 中，它是 <strong>A → MB</strong> 的态射；在新建的 Kleisli category 𝒦 中，同一个 f 被视为 <strong>A → B</strong> 的态射。这不是把 MB 当成 B，而是重新定义了两个 objects 之间允许的箭头：</p>
+<div class="equation"><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><mrow><mi>𝒦</mi><mo>(</mo><mi>A</mi><mo>,</mo><mi>B</mi><mo>)</mo><mo>=</mo><mi>𝒞</mi><mo>(</mo><mi>A</mi><mo>,</mo><mi>M</mi><mi>B</mi><mo>)</mo></mrow></math></div>
+<p>因此 𝒦 和 𝒞 有相同的 objects，却有不同的 morphisms 和 composition。若 f、g 的类型如上一节，Kleisli composition 写作：</p>
+<pre><code class="language-haskell">import Control.Monad ((&gt;=&gt;))
+
+-- f :: a -&gt; m b, g :: b -&gt; m c
+-- Under the constraint Monad m:
+f &gt;=&gt; g :: a -&gt; m c</code></pre>
+<p><code>&gt;=&gt;</code> 也叫 Fish，按从左到右的顺序读：先 f，再 g。Kleisli identity 是 <code>pure :: Monad m =&gt; a -&gt; m a</code>；它只引入一个值，不加入额外的计算效果。例如在 Maybe 中 identity 是 Just，在 Writer 中它附带空日志。</p>
+<p>关系的方向很重要：<strong>从一个 Monad 出发，才能用它的 unit 和 composition 构造 Kleisli category。</strong>Monad Laws 保证这里的 identity 和 composition 满足 Category Laws。仅有一个 endofunctor，还没有指定怎样从嵌套结果回到一层，也没有这些规律，不能自动得到所需的 Kleisli category。第 9 节会把这件事写成数学公式；先看 Haskell 中具体怎样连接计算。</p>
+</section>
+
+<section class="post-section" aria-labelledby="operations">
+<h3 id="operations">3. Monad 的五个核心操作</h3>
+<p>下面列出操作的完整约束。现代 Haskell 中 <code>Monad</code> 以 <code>Applicative</code> 为 superclass，而 Applicative 又要求 Functor；所以 Monad 也能使用 pure 和 fmap。pure 本身只需要 Applicative，并非 Monad 独有。签名是接口说明，后面的表达式可以在 GHCi 中求值。</p>
+<pre><code class="language-haskell">import Control.Monad ((&gt;=&gt;), join)
+
+pure   :: Applicative m =&gt; a -&gt; m a
+return :: Monad m =&gt; a -&gt; m a
+(&gt;=&gt;)  :: Monad m =&gt; (a -&gt; m b) -&gt; (b -&gt; m c) -&gt; a -&gt; m c
+(&gt;&gt;=)  :: Monad m =&gt; m a -&gt; (a -&gt; m b) -&gt; m b
+join   :: Monad m =&gt; m (m a) -&gt; m a
+(&gt;&gt;)   :: Monad m =&gt; m a -&gt; m b -&gt; m b</code></pre>
+<h4>pure / return：引入一个值</h4>
+<p><code>pure 5 :: Maybe Int</code> 得到 <code>Just 5</code>。在 Monad 中 return 与 pure 的角色相同；本文统一使用 pure。它不负责提前结束函数。</p>
+<h4>Fish 与 Bind：两种不同的连接位置</h4>
+<p>Fish 的两边都是函数，得到的仍是函数；Bind 左边则已经是一个 monadic value，右边是接收普通结果的下一步计算：</p>
+<pre><code class="language-haskell">-- Fish expressed using Bind:
+f &gt;=&gt; g = \x -&gt; f x &gt;&gt;= g
+
+Just 10 &gt;&gt;= (\x -&gt; Just (x * 2))
+-- Just 20
+
+((\x -&gt; Just (x + 1)) &gt;=&gt; (\y -&gt; Just (y * 2))) 3
+-- Just 8</code></pre>
+<p>最后一行先把两个函数组合，再给这个新函数输入 3。Bind 的例子则从现有的 <code>Just 10</code> 开始。<code>\x -&gt; ...</code> 是匿名函数；符号不熟悉时可以查看文末的<a href="#syntax">语法速查</a>。</p>
+<h4>join：合并两层相同的上下文</h4>
+<pre><code class="language-haskell">join (Just (Just 5))
+-- Just 5
+
+join (Just Nothing) :: Maybe Int
+-- Nothing</code></pre>
+<p>join 的输入必须具有 <code>m (m a)</code> 的形状。如何合并由实例决定，并不是任意删除一层包装。下一节会解释为什么它正好补上 fmap 所缺少的一步。</p>
+<h4>&gt;&gt;：忽略值，保留计算效果</h4>
+<pre><code class="language-haskell">m &gt;&gt; k = m &gt;&gt;= (\_ -&gt; k)
+
+Just 3 &gt;&gt; Just 8
+-- Just 8
+
+Nothing &gt;&gt; Just 8
+-- Nothing</code></pre>
+<p>匿名函数 <code>\_ -&gt; k</code> 接收一个参数但不用它。忽略返回值不等于忽略前一步计算：第二个例子仍然传播失败，根本不会进入后续成功分支。对 Writer 而言，前一步的日志也仍会保留。</p>
+</section>
+
+<section class="post-section" aria-labelledby="fmap-bind-join">
+<h3 id="fmap-bind-join">4. Functor、Bind 与 Join：先看清类型</h3>
+<p>我最容易混淆的是：对一个返回 Maybe 的函数使用 fmap，结果究竟有几层 Maybe？把类型代进去就能看出来：</p>
+<pre><code class="language-haskell">fmap :: Functor m =&gt; (a -&gt; b) -&gt; m a -&gt; m b
+
+ma :: Maybe Int
+ma = Just 5
+
+f :: Int -&gt; Maybe Bool
+f x = Just (x &gt; 0)</code></pre>
+<p><code>ma</code> 是值的名字；<code>m a</code> 才是类型构造器 m 应用于类型 a。这里 fmap 签名里的 b 被替换成 <code>Maybe Bool</code>，而外层 m 是 Maybe，所以：</p>
+<pre><code class="language-haskell">fmap f ma :: Maybe (Maybe Bool)
+-- Just (Just True)
+
+ma &gt;&gt;= f :: Maybe Bool
+-- Just True
+
+join (fmap f ma) :: Maybe Bool
+-- Just True</code></pre>
+<p>fmap 保留外层结构，再对其中的值应用 f；新的一层来自 <strong>f 自己返回 Maybe</strong>。并不是每次 fmap 都产生嵌套：<code>fmap (&gt; 0) ma</code> 只有 <code>Maybe Bool</code> 一层，因为 <code>(&gt; 0)</code> 返回普通 Bool。</p>
+<p>Bind 则把下一步返回的上下文与现有上下文合并。因此，对于同一个 lawful Monad，有：</p>
+<pre><code class="language-haskell">ma &gt;&gt;= f = join (fmap f ma)
+
+join mma = mma &gt;&gt;= id
+
+fmap f ma = ma &gt;&gt;= (\a -&gt; pure (f a))</code></pre>
+<p>这些是操作之间的等式，不是在文件中重新声明库函数。第一条先 map 再 flatten；第二条把内部计算交给 id；第三条说明可以用 Bind 和 pure 得到与 Monad 兼容的 fmap。在当前 f 返回 Maybe 的例子里，第三条的 pure 仍会引入外层 Maybe，所以结果仍是 <code>Maybe (Maybe Bool)</code>。</p>
+<p>相反，<code>join (Just (5 :: Int))</code> 是类型错误：join 需要 <code>Maybe (Maybe a)</code>，拿到的却是 <code>Maybe Int</code>。笔记中的 <code>join (Just 5)</code> 在这些标准实例下同样不能通过类型检查；数字 5 不是内层 Maybe。显式写出 Int，可以把这个类型错位看得更清楚。</p>
+</section>
+
+<section class="post-section" aria-labelledby="maybe">
+<h3 id="maybe">5. Maybe：让失败沿着计算传播</h3>
+<p>定义一个只允许偶数除以二的函数。除不尽就没有结果：</p>
+<pre><code class="language-haskell">half :: Int -&gt; Maybe Int
+half x =
+  if even x
+  then Just (x `div` 2)
+  else Nothing</code></pre>
+<p>Maybe 的 Bind 可以用两条规则理解：</p>
+<pre><code class="language-haskell">Just x  &gt;&gt;= f = f x
+Nothing &gt;&gt;= f = Nothing</code></pre>
+<p>有结果时，把 x 交给下一步；没有结果时，直接保留 Nothing。这两行是实例行为的说明，不是需要额外复制的 instance 声明。于是：</p>
+<pre><code class="language-haskell">Just 24 &gt;&gt;= half &gt;&gt;= half &gt;&gt;= half
+-- Just 3
+
+Just 10 &gt;&gt;= half &gt;&gt;= half
+-- Nothing</code></pre>
+<p>成功的路径是 24 → 12 → 6 → 3。每次传给 half 的输入都为偶数；最后的 3 虽然是奇数，却是合法输出，因为我们没有再对它调用 half。失败的路径则先得到 <code>Just 5</code>，第二次 half 接收到 5，返回 Nothing。继续接任何同类型的下一步，Bind 都会传播这个失败。</p>
+<p><strong>Maybe 允许计算失败，不代表每个计算都会失败。</strong>我们仍要在 half 中判断它自己的失败条件，但不用在每两个步骤之间反复检查上一项是否成功。也可以定义 <code>half &gt;=&gt; half</code>，得到一个可以重复使用的 <code>Int -&gt; Maybe Int</code> 函数。</p>
+</section>
+
+<section class="post-section" aria-labelledby="writer">
+<h3 id="writer">6. Writer：结果与日志一起组合</h3>
+<p>另一个例子不需要失败，而需要同时保留结果和过程记录。可以把 <code>Writer w a</code> 理解为一对 <code>(a, w)</code>：a 是计算结果，w 是累积的日志。实际库使用封装类型，通过 runWriter 取出这对值。下面代码使用 <code>mtl</code> 包的 <code>Control.Monad.Writer.Strict</code>，不是只有 base 的程序：</p>
+<pre><code class="language-haskell">import Control.Monad.Writer.Strict
+  (Writer, writer, runWriter, tell)
+
+addOne :: Int -&gt; Writer String Int
+addOne x = writer (x + 1, "addOne; ")
+
+double :: Int -&gt; Writer String Int
+double x = writer (x * 2, "double; ")
+
+-- Evaluate in GHCi:
+runWriter (addOne 3 &gt;&gt;= double)
+-- (8, "addOne; double; ")</code></pre>
+<p>addOne 把 3 变成 4，并留下第一段日志；Bind 将 4 传给 double，得到 8 和第二段日志。它返回新的数值结果，同时按先后顺序合并两段日志。日志是返回的数据，这里并没有向终端打印信息。</p>
+<p>下面的等式是解释 Writer 行为的伪代码，左侧的 pair 不是库中的 Writer 构造器：</p>
+<pre><code>pure a             ≈ (a, mempty)
+(a, w1) &gt;&gt;= f      ≈ let (b, w2) = f a
+                       in (b, w1 &lt;&gt; w2)</code></pre>
+<p>符号 <code>&lt;&gt;</code> 是日志的组合操作；在 Monoid 上也可以写成 <code>mappend</code>。Writer 的 Monad instance 要求 <code>Monoid w</code>，因为 pure 需要空日志 mempty，Bind 需要合并日志，而且这些操作必须满足：</p>
+<pre><code class="language-haskell">mempty &lt;&gt; w = w
+w &lt;&gt; mempty = w
+(u &lt;&gt; v) &lt;&gt; w = u &lt;&gt; (v &lt;&gt; w)</code></pre>
+<p>前两条是 identity，第三条是 associativity。空日志不影响已有记录，改变组合的括号也不改变最终日志；这些正好支持 Writer 的 Monad Laws。字符串的 mempty 是 <code>""</code>，组合操作就是 <code>++</code>。Monoid 不要求交换律：</p>
+<pre><code class="language-haskell">"F;" ++ "G;" /= "G;" ++ "F;"
+-- True</code></pre>
+<p>先 F 后 G 和先 G 后 F 的记录不同。Associativity 允许重新分组，不允许交换执行顺序。</p>
+<p>如果只想追加一段日志，可以使用 tell。专门化到 Writer 后，它的类型为 <code>tell :: Monoid w =&gt; w -&gt; Writer w ()</code>。<code>()</code> 是 unit value，表示没有需要继续使用的数值结果；日志仍然存在：</p>
+<pre><code class="language-haskell">runWriter (tell "start; " &gt;&gt; addOne 3 &gt;&gt;= double)
+-- (8, "start; addOne; double; ")</code></pre>
+<p>这里 <code>&gt;&gt;</code> 忽略 tell 返回的 <code>()</code>，却保留了 <code>"start; "</code>。同一个 sequencing 接口，在 Maybe 中负责失败传播，在 Writer 中负责日志累积。</p>
+</section>
+
+<section class="post-section" aria-labelledby="do-notation">
+<h3 id="do-notation">7. do Notation：把 Bind 写得更直观</h3>
+<p>当后一步依赖前一步的值，连续的 Lambda 会让表达式显得拥挤。普通的 monadic do notation 把这些 Bind 写成逐行形式：</p>
+<pre><code class="language-haskell">result :: Maybe Int
+result = do
+  x &lt;- Just 8
+  y &lt;- Just (x + 3)
+  pure (y * 2)
+-- Just 22</code></pre>
+<p>在这个只使用变量绑定的例子中，等价的 Bind 表达式是：</p>
+<pre><code class="language-haskell">result :: Maybe Int
+result =
+  Just 8 &gt;&gt;= \x -&gt;
+  Just (x + 3) &gt;&gt;= \y -&gt;
+  pure (y * 2)</code></pre>
+<p>第一步把 8 交给后续函数，所以 x 是 Int，而 <code>Just 8</code> 是 <code>Maybe Int</code>。第二步得到 <code>Just 11</code>，把 11 绑定给 y；最后 <code>y * 2</code> 是普通 Int 22，pure 在当前 Maybe 上下文中返回 <code>Just 22</code>。</p>
+<p><code>&lt;-</code> 表示把计算产生的值绑定到后续代码的名字上，具体传递仍由 <code>&gt;&gt;=</code> 完成；它不是一个可以在任意位置把 Maybe 拆开的操作。没有 <code>&lt;-</code> 的中间计算语句通常使用 <code>&gt;&gt;</code>，忽略其结果并保留效果。如果某一步变成 Nothing，后续计算仍会被跳过。</p>
+<p>do 没有消除 Monad，只是隐藏了显式的 Bind 与 Lambda。把最后的 pure 改成 return，也不表示“提前退出”：Haskell 的 return 是产生一个 monadic value 的函数，不是命令式语言的控制流语句。</p>
+</section>
+
+<section class="post-section" aria-labelledby="laws">
+<h3 id="laws">8. Monad Laws：组合为什么可靠？</h3>
+<p>只有类型签名还不够：自定义的操作即使能通过类型检查，也未必遵守预期的组合规则。Lawful Monad 还必须满足以下等式。</p>
+<pre><code class="language-haskell">-- Left identity
+pure x &gt;&gt;= f = f x
+
+-- Right identity
+m &gt;&gt;= pure = m
+
+-- Associativity
+(m &gt;&gt;= f) &gt;&gt;= g =
+  m &gt;&gt;= (\x -&gt; f x &gt;&gt;= g)</code></pre>
+<p>Left identity 表示把普通值引入上下文后再交给 f，与直接调用 f 一样。例如 <code>pure 8 &gt;&gt;= half</code> 和 <code>half 8</code> 都是 <code>Just 4</code>。Right identity 表示把已有计算的结果交给 pure，不会增加新的效果。</p>
+<pre><code class="language-haskell">(Just 5 &gt;&gt;= pure) :: Maybe Int
+-- Just 5
+
+pure (Just 5) :: Maybe (Maybe Int)
+-- Just (Just 5)</code></pre>
+<p>这里特意给第二行的外层 pure 指定 Maybe，否则 pure 的上下文还没有确定。两者不同的原因是：Bind 交给 pure 的是 5；直接 <code>pure (Just 5)</code> 交给 pure 的却是整个 <code>Just 5</code>。Right identity 并没有说“直接再包一层也不变”。</p>
+<p>Associativity 表示先把前两步接起来，或者先组织好后两步再接入，得到相同的计算。执行顺序仍然是 m、f、g。Writer 的例子里两种括号得到相同的日志，而不是允许日志倒序。</p>
+<p>把这些规律改写成 Fish 的形式，就直接看到了 Kleisli category 的 Category Laws：</p>
+<pre><code class="language-haskell">pure &gt;=&gt; f = f
+f &gt;=&gt; pure = f
+
+(f &gt;=&gt; g) &gt;=&gt; h =
+  f &gt;=&gt; (g &gt;=&gt; h)</code></pre>
+<p>pure 是这套 composition 的 identity，<code>&gt;=&gt;</code> 满足 associativity。第 2 节所说的“Monad 提供一个 category 所需的结构”，具体就是这件事。</p>
+</section>
+
+<section class="post-section" aria-labelledby="mathematical-definition">
+<h3 id="mathematical-definition">9. 数学定义：Endofunctor、Unit 与 Multiplication</h3>
+<p>回到范畴论，一个 Monad 是三元组 (T, η, μ)。这里把前面的 M 改记为常见的 T：</p>
+<div class="equation"><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><mrow><mi>T</mi><mo>:</mo><mi>𝒞</mi><mo>→</mo><mi>𝒞</mi><mo>,</mo><mspace width="1em"/><mi>η</mi><mo>:</mo><msub><mi>Id</mi><mi>𝒞</mi></msub><mo>⇒</mo><mi>T</mi><mo>,</mo><mspace width="1em"/><mi>μ</mi><mo>:</mo><msup><mi>T</mi><mn>2</mn></msup><mo>⇒</mo><mi>T</mi></mrow></math></div>
+<p>T 是 endofunctor：把对象 A 送到 TA，并把态射 f 送到 T(f)，保留 identity 和 composition。η 和 μ 是 natural transformations。η 的分量 <code>η_A : A → TA</code> 对应 pure；μ 的分量 <code>μ_A : T(TA) → TA</code> 对应 join。这里 T² 表示函子复合 T ∘ T，不是数字平方。Natural transformation 要求这些分量与态射的映射相容，而不是对每个对象随意挑一个函数。</p>
+<p>除了 naturality，η 与 μ 还必须满足下面两张交换图。每条从同一起点到同一终点的路径，都表示同一个 natural transformation。</p>
+<figure id="associativity-diagram">
+<div class="diagram-scroll"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 260" role="img" aria-labelledby="assoc-title assoc-desc">
+<title id="assoc-title">Monad associativity</title>
+<desc id="assoc-desc">从左上 T³ 到右下 T，向右经 Tμ 再向下经 μ，与向下经 μT 再向右经 μ，两条路径相等。</desc>
+<defs><marker id="assoc-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0 1 L9 5 L0 9" fill="none" stroke="#596650" stroke-width="1.4"/></marker></defs>
+<text x="75" y="53">T<tspan baseline-shift="super" font-size="18">3</tspan></text>
+<text x="285" y="53">T<tspan baseline-shift="super" font-size="18">2</tspan></text>
+<text x="75" y="221">T<tspan baseline-shift="super" font-size="18">2</tspan></text>
+<text x="285" y="221">T</text>
+<path class="edge" d="M105 44 H255" marker-end="url(#assoc-arrow)"/>
+<path class="edge" d="M75 70 V187" marker-end="url(#assoc-arrow)"/>
+<path class="edge" d="M285 70 V187" marker-end="url(#assoc-arrow)"/>
+<path class="edge" d="M105 212 H255" marker-end="url(#assoc-arrow)"/>
+<text class="label" x="180" y="28">Tμ</text>
+<text class="label" x="40" y="136">μT</text>
+<text class="label" x="313" y="136">μ</text>
+<text class="label" x="180" y="245">μ</text>
+</svg></div>
+<figcaption>Figure 1 — Associativity：先合并内层或先合并外层，最终从三层变为一层的结果相同。</figcaption>
+</figure>
+<div class="equation"><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><mrow><mi>μ</mi><mo>∘</mo><mi>T</mi><mi>μ</mi><mo>=</mo><mi>μ</mi><mo>∘</mo><mi>μ</mi><mi>T</mi></mrow></math></div>
+<p>更精确地，在对象 A 处，这是：</p>
+<div class="equation"><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><mrow><msub><mi>μ</mi><mi>A</mi></msub><mo>∘</mo><mi>T</mi><mo>(</mo><msub><mi>μ</mi><mi>A</mi></msub><mo>)</mo><mo>=</mo><msub><mi>μ</mi><mi>A</mi></msub><mo>∘</mo><msub><mi>μ</mi><mrow><mi>T</mi><mi>A</mi></mrow></msub></mrow></math></div>
+<p>Tμ 的分量 T(μ_A) 对应 <code>fmap join</code>，先在外层中合并内部两层；μT 的分量 μ_TA 对应先用 join 合并外部两层。之后再 join 一次，结果相同。这是“改变分组不改变结果”的 flattening 版本。</p>
+<figure id="unit-diagram">
+<div class="diagram-scroll"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 260" role="img" aria-labelledby="unit-title unit-desc">
+<title id="unit-title">Monad unit laws</title>
+<desc id="unit-desc">左上 T 经顶边 ηT 到右上 T²，再经 μ 到右下 T；或经左边 Tη 到左下 T²，再经 μ 到右下 T。两条路径都等于从左上到右下的 identity id_T。</desc>
+<defs><marker id="unit-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0 1 L9 5 L0 9" fill="none" stroke="#596650" stroke-width="1.4"/></marker></defs>
+<text x="75" y="53">T</text>
+<text x="285" y="53">T<tspan baseline-shift="super" font-size="18">2</tspan></text>
+<text x="75" y="221">T<tspan baseline-shift="super" font-size="18">2</tspan></text>
+<text x="285" y="221">T</text>
+<path class="edge" d="M105 44 H255" marker-end="url(#unit-arrow)"/>
+<path class="edge" d="M75 70 V187" marker-end="url(#unit-arrow)"/>
+<path class="edge" d="M285 70 V187" marker-end="url(#unit-arrow)"/>
+<path class="edge" d="M105 212 H255" marker-end="url(#unit-arrow)"/>
+<path class="edge" d="M98 67 L260 191" marker-end="url(#unit-arrow)"/>
+<text class="label" x="180" y="28">ηT</text>
+<text class="label" x="40" y="136">Tη</text>
+<text class="label" x="313" y="136">μ</text>
+<text class="label" x="180" y="245">μ</text>
+<text class="label" x="204" y="119">id<tspan baseline-shift="sub" font-size="15">T</tspan></text>
+</svg></div>
+<figcaption>Figure 2 — Unit laws：插入一层 unit 再 flatten，两条路径都回到原来的计算。</figcaption>
+</figure>
+<div class="equation"><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><mrow><mi>μ</mi><mo>∘</mo><mi>η</mi><mi>T</mi><mo>=</mo><msub><mi>id</mi><mi>T</mi></msub><mo>=</mo><mi>μ</mi><mo>∘</mo><mi>T</mi><mi>η</mi></mrow></math></div>
+<p>顶边 ηT 在 A 处是 η_TA，把整个 TA 用 pure 引入一层；左边 Tη 是 T(η_A)，对应在 TA 内部 fmap pure。然后应用 μ_A，都得到 TA 上的恒等映射。因此，对任意 monadic value ma，<code>join (pure ma) = ma</code>，且 <code>join (fmap pure ma) = ma</code>。</p>
+<p>现在可以写出 Kleisli composition。对原范畴中的 f : A → TB、g : B → TC，定义：</p>
+<div class="equation"><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><mrow><mi>g</mi><mo>⋆</mo><mi>f</mi><mo>=</mo><msub><mi>μ</mi><mi>C</mi></msub><mo>∘</mo><mi>T</mi><mo>(</mo><mi>g</mi><mo>)</mo><mo>∘</mo><mi>f</mi></mrow></math></div>
+<p>从右往左读：f 先产生 TB；T(g) 把 g 映入上下文，得到 T(TC)；μ_C 再把两层合为 TC。对应 Haskell，就是 <code>(f &gt;=&gt; g) x = join (fmap g (f x))</code>。Kleisli identity 则由 η 给出。因而 pure、join 与 Functor 的表示，以及 pure、Bind 或 Fish 的表示，在满足相应规律与相容性条件时，描述的是同一个 Monad 结构。</p>
+</section>
+
+<section class="post-section" aria-labelledby="arrows">
+<h3 id="arrows">10. 从 Monad 走向 Arrow</h3>
+<p>到这里，Monad 的核心可以连成一条线：pure 引入值，Bind 把一个计算交给下一步，join 合并嵌套上下文，而 Fish 直接组合 Kleisli 函数。Monad Laws 使这些连接构成 Kleisli category。Maybe 和 Writer 展示了同一种结构如何保留不同的计算含义。</p>
+<p>接下来学习 Arrow，仍然从 composition 出发。<code>f &gt;=&gt; g</code> 组合返回 monadic value 的函数；<code>f &gt;&gt;&gt; g</code> 则是更一般的、从左到右的 Category composition：</p>
+<div class="table-scroll"><table>
+<thead><tr><th scope="col">结构</th><th scope="col">Kleisli 函数</th><th scope="col">一般 Arrow</th></tr></thead>
+<tbody>
+<tr><th scope="row">表示</th><td><code>a -&gt; m b</code></td><td><code>arr a b</code></td></tr>
+<tr><th scope="row">组合</th><td><code>&gt;=&gt;</code></td><td><code>&gt;&gt;&gt;</code>，来自 Category</td></tr>
+<tr><th scope="row">Identity</th><td><code>pure</code></td><td><code>Control.Category.id</code>，也可写 <code>arr Prelude.id</code></td></tr>
+<tr><th scope="row">提升普通函数 f</th><td><code>pure . f</code></td><td><code>arr f</code></td></tr>
+<tr><th scope="row">作用于 pair 的第一项</th><td>对第一项计算并保留第二项</td><td><code>first</code></td></tr>
+</tbody></table></div>
+<pre><code class="language-haskell">arr :: Arrow arr =&gt; (a -&gt; b) -&gt; arr a b
+first :: Arrow arr =&gt; arr a b -&gt; arr (a, c) (b, c)</code></pre>
+<p>签名中左侧的 arr 是函数名，类型中的 arr 是有两个类型参数的构造器。<code>arr</code> 提升一个普通函数，<code>first</code> 则让已有计算只作用于 pair 的第一项，同时把第二项传下去。这与之前学习的 products 有直接联系。</p>
+<p>对于 lawful Monad m，Haskell 的 <code>Kleisli m</code> 把 <code>a -&gt; m b</code> 包成 <code>Kleisli m a b</code>，并提供 Arrow instance。继续使用第 5 节的 half：</p>
+<pre><code class="language-haskell">import Control.Arrow (Kleisli(..), arr, first, (&gt;&gt;&gt;))
+
+quarter :: Kleisli Maybe Int Int
+quarter = Kleisli half &gt;&gt;&gt; Kleisli half
+
+runKleisli quarter 24
+-- Just 6
+
+runKleisli (first (Kleisli half)) (8, "keep")
+-- Just (4, "keep")
+
+runKleisli (arr (+ 1) :: Kleisli Maybe Int Int) 3
+-- Just 4</code></pre>
+<p>这里 <code>Kleisli f &gt;&gt;&gt; Kleisli g</code> 正好对应 <code>Kleisli (f &gt;=&gt; g)</code>。但一般的 Arrow 接口并不要求所有实例都由 Monad 导出。还要区分 pure 与 arr：pure 把一个<strong>值</strong>引入 monadic context，arr 把一个<strong>函数</strong>提升成 Arrow；在 Kleisli 实例中，<code>arr f = Kleisli (pure . f)</code>。</p>
+<p>下一步的问题于是变为：除了串行组合，怎样用 arr 和 first 组织输入输出的结构？这就是从 Monad 走向 Arrow 时，要继续追踪的主线。</p>
+</section>
+
+<section class="post-section" aria-labelledby="syntax">
+<h3 id="syntax">附：Haskell 符号速查</h3>
+<p>这些符号分别属于类型、函数定义和计算组合，不能只看形状猜含义。尤其是 <code>=</code> 在代码里用于定义；上文 laws 中的等号则是在陈述数学等式，不是让 GHCi 执行一条赋值。</p>
+<div class="table-scroll"><table>
+<thead><tr><th scope="col">语法</th><th scope="col">含义</th></tr></thead>
+<tbody>
+<tr><th scope="row"><code>\x -&gt; expression</code></th><td>Lambda / 匿名函数，以 x 为参数。</td></tr>
+<tr><th scope="row"><code>\_ -&gt; expression</code></th><td>接收参数但忽略它，返回 expression。</td></tr>
+<tr><th scope="row"><code>::</code></th><td>类型标注，例如 <code>5 :: Int</code>。</td></tr>
+<tr><th scope="row"><code>-&gt;</code></th><td>类型中表示函数；Lambda 中分隔参数与函数体。</td></tr>
+<tr><th scope="row"><code>=&gt;</code></th><td>类型类约束与类型主体的分隔，如 <code>Monad m =&gt; ...</code>。</td></tr>
+<tr><th scope="row"><code>=</code></th><td>定义一个名字或函数。</td></tr>
+<tr><th scope="row"><code>==</code> / <code>/=</code></th><td>相等 / 不等比较，返回 Bool。</td></tr>
+<tr><th scope="row"><code>.</code></th><td>普通函数组合，<code>g . f</code> 先 f 后 g。</td></tr>
+<tr><th scope="row"><code>&gt;=&gt;</code></th><td>Kleisli composition，连接两个 Kleisli 函数。</td></tr>
+<tr><th scope="row"><code>&gt;&gt;=</code></th><td>Bind，把已有 monadic value 接到下一步函数。</td></tr>
+<tr><th scope="row"><code>&gt;&gt;</code></th><td>顺序组合，忽略第一个返回值，保留效果。</td></tr>
+<tr><th scope="row"><code>&lt;-</code></th><td>在 do 中绑定一个计算产生的值。</td></tr>
+<tr><th scope="row"><code>++</code></th><td>List concatenation；String 是字符列表，所以也可拼接字符串。</td></tr>
+<tr><th scope="row"><code>()</code></th><td>类型位置是 unit type；值的位置是它的唯一完全定义值。</td></tr>
+<tr><th scope="row"><code>Just</code> / <code>Nothing</code></th><td>Maybe 的构造器，分别表示有一个值 / 没有值。</td></tr>
+<tr><th scope="row">反引号 <code>`...`</code></th><td>把函数用作中缀操作，如 <code>x `div` 2</code> 等于 <code>div x 2</code>。</td></tr>
+</tbody></table></div>
+<pre><code class="language-haskell">\x -&gt; x + 1
+-- The same function as the named definition:
+addOne x = x + 1
+
+\_ -&gt; k
+-- Accept an argument, ignore it, and return k.
+
+5 /= 3
+-- True</code></pre>
+<p>这里 addOne 只是说明 Lambda 的独立命名例子，不是第 6 节的 Writer 函数。<code>/=</code> 表示“不等于”，不是除法或赋值。</p>
+</section>
+
+<p class="material">Material: 本文按个人笔记《Monad是什么》的十节顺序整理，补全例子并重画两张 Monad laws 交换图。Bartosz Milewski, <em>Category Theory for Programmers</em> · <a href="https://bartoszmilewski.com/2016/11/21/monads-programmers-definition/">Monads: Programmer’s Definition</a>；Miran Lipovača, <em>Learn You a Haskell for Great Good!</em> · <a href="https://learnyouahaskell.github.io/a-fistful-of-monads.html">A Fistful of Monads</a>。</p>
+<p class="material">API references: <a href="https://hackage.haskell.org/package/base/docs/Control-Monad.html">Control.Monad</a> · <a href="https://hackage.haskell.org/package/mtl/docs/Control-Monad-Writer-Strict.html">Control.Monad.Writer.Strict</a> · <a href="https://hackage.haskell.org/package/base/docs/Control-Arrow.html">Control.Arrow</a>。代码块中的签名、规律和 GHCi 表达式分别用于说明接口、等式和求值，不应作为一个文件整体粘贴。</p>
+  </article>
+  <nav class="page-navigation"><a href="../index.html">Home</a> / <a href="./index.html">Blog</a></nav>
+  </main>
+  <div class="rabbits">
+    <img src="../土豆%20%26%20糯米/rabbits-together.jpeg" alt="Tudou and Nuomi resting together">
+  </div>
+</body>
+</html>

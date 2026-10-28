@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>从不终止到偏序：用信息近似理解程序语义 | 泽华Zehua</title>
+  <link rel="stylesheet" href="../style.css" />
+  <style>
+    html { scroll-behavior: smooth; }
+    .domain-post { line-height: 1.65; }
+    .domain-post .post-title, .domain-post h3 { scroll-margin-top: 20px; }
+    .domain-post .post-subtitle { font-size: 0.9em; color: #41483b; }
+    .domain-post .post-toc { margin: 28px 0; }
+    .domain-post .post-toc h3 { font-size: 1em; margin-bottom: 8px; }
+    .domain-post .post-toc ul { padding: 0; margin: 0; list-style: none; }
+    .domain-post .post-toc a, .domain-post .post-toc a:visited { color: #0000ee; }
+    .domain-post a:focus-visible { outline: 2px solid currentColor; outline-offset: 3px; }
+    .domain-post .equation { margin: 16px 0; overflow-x: auto; overflow-y: hidden; padding: 6px 0; }
+    .domain-post math { font-family: "Cambria Math", "STIX Two Math", math; font-size: 1.05em; line-height: normal; }
+    .domain-post .equation math { margin: 0 auto; }
+    .domain-post figure { margin: 24px 0; }
+    .domain-post .diagram-scroll { overflow-x: auto; padding: 4px 0; }
+    .domain-post svg { display: block; width: 100%; height: auto; margin: auto; max-width: 560px; }
+    .domain-post .wide-diagram { min-width: 450px; }
+    .domain-post .compact-diagram { max-width: 360px; }
+    .domain-post svg text { fill: #293326; font-family: Georgia, "Times New Roman", serif; font-size: 21px; text-anchor: middle; }
+    .domain-post svg .label { font-size: 15px; font-style: normal; }
+    .domain-post svg .math-label { font-family: "Cambria Math", "STIX Two Math", serif; font-size: 24px; }
+    .domain-post svg .edge { fill: none; stroke: #596650; stroke-width: 1.6; }
+    .domain-post svg .relation { fill: none; stroke: #526a83; stroke-width: 1.6; stroke-dasharray: 4 4; }
+    .domain-post svg .construct { fill: none; stroke: #526a83; stroke-width: 1.8; }
+    .domain-post svg .rule { stroke: #aebba0; stroke-width: 1; }
+    .domain-post figcaption { margin-top: 8px; font-size: 0.875em; color: #41483b; }
+    .domain-post .table-scroll { overflow-x: auto; margin: 16px 0; }
+    .domain-post table { border-collapse: collapse; width: 100%; font-size: 0.9em; }
+    .domain-post th, .domain-post td { border-bottom: 1px solid #aebba0; padding: 8px; text-align: left; vertical-align: top; }
+    .domain-post .material { font-size: 0.875em; }
+    @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+  </style>
+</head>
+<body>
+  <main>
+  <article class="domain-post">
+
+<h2 class="post-title" id="article-title">从不终止到偏序：用信息近似理解程序语义</h2>
+<p class="post-subtitle" lang="en">From Non-Termination to Partial Orders: Understanding Program Semantics through Approximation</p>
+<p class="post-date"><time datetime="2026-10-20">2026-10-20</time></p>
+<nav class="post-toc" aria-labelledby="toc-title">
+<h3 id="toc-title">Table of Contents</h3>
+<ul>
+<li><a href="#nontermination">1. 不终止的程序，也需要语义</a></li>
+<li><a href="#partial-semantics">2. 加入 bottom，为什么还不够？</a></li>
+<li><a href="#unrolling">3. 用有限展开逼近循环</a></li>
+<li><a href="#partial-orders">4. 偏序：比较信息，而不只是大小</a></li>
+<li><a href="#flat-pointwise">5. 从 flat order 到 partial maps 的逐点序</a></li>
+<li><a href="#monotonicity">6. 单调映射：保留近似关系</a></li>
+<li><a href="#extrema">7. 对偶、极值与 strict maps</a></li>
+<li><a href="#categories">8. 把这些构造放回范畴图中</a></li>
+<li><a href="#fixed-points">9. 从偏序走向不动点</a></li>
+</ul></nav>
+
+<section class="post-section" aria-labelledby="nontermination">
+<h3 id="nontermination">1. 不终止的程序，也需要语义</h3>
+<p>Chapter 4 用 big-step operational semantics 描述 Imp：<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo form="prefix" stretchy="false">⟨</mo><mi>c</mi><mo>,</mo><mi>σ</mi><mo form="postfix" stretchy="false">⟩</mo><mo>⇓</mo><msup><mi>σ</mi><mo>′</mo></msup></mrow><annotation encoding="application/x-tex">\langle c,\sigma\rangle\Downarrow\sigma'</annotation></semantics></math> 表示命令 c 从 memory state σ 出发，经过有限计算终止于 σ′。推导树必须是有限的。现在考虑一个最简单的循环：</p>
+<div class="equation"><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi mathvariant="normal">Ω</mi><mo>=</mo><mrow><mi>𝚠</mi><mi>𝚑</mi><mi>𝚒</mi><mi>𝚕</mi><mi>𝚎</mi><mspace width="0.222em"></mspace><mi>𝚝</mi><mi>𝚛</mi><mi>𝚞</mi><mi>𝚎</mi><mspace width="0.222em"></mspace><mi>𝚍</mi><mi>𝚘</mi><mspace width="0.222em"></mspace><mi>𝚗</mi><mi>𝚘</mi><mi>𝚘</mi><mi>𝚙</mi></mrow><mi>.</mi></mrow><annotation encoding="application/x-tex">
+\Omega=\mathtt{while\ true\ do\ noop}.
+</annotation></semantics></math></div>
+<p>条件始终为真，noop 不改变状态；每次使用 while 规则，都会再次要求证明同一个循环的终止。因此不存在最终状态，也不存在有限的 big-step 推导。<strong>Termination</strong> 是能导出某个最终状态；<strong>divergence</strong> 则是在这里所用的确定性、无 stuck 配置的 Imp 中没有终止结果。若语言还允许运行时错误，就不能仅凭没有 big-step 结果区分错误与无限执行。</p>
+<p>若将每条命令解释为 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi mathvariant="normal">Σ</mi><mo>→</mo><mi mathvariant="normal">Σ</mi></mrow><annotation encoding="application/x-tex">\Sigma\to\Sigma</annotation></semantics></math>，就必须给 Ω 指派一个普通最终状态，这与 operational behaviour 不符。图 1 展示了问题所在：我们需要扩大结果空间。</p>
+<figure id="figure-1">
+<div class="diagram-scroll"><svg class="compact-diagram" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 255" role="img" aria-labelledby="fig-1-title fig-1-desc">
+<title id="fig-1-title">Figure 1 — Why Non-Termination Matters</title><desc id="fig-1-desc">没有最终状态，促使语义的结果空间容纳未定义值。</desc>
+<defs><marker id="arrow-1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 1 L 9 5 L 0 9" fill="none" stroke="#596650" stroke-width="1.4"/></marker>
+<marker id="blue-1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 1 L 9 5 L 0 9" fill="none" stroke="#526a83" stroke-width="1.4"/></marker></defs>
+
+<text x="180" y="28">Infinite loop</text>
+<path class="edge" d="M180 39 V65" marker-end="url(#arrow-1)"/>
+<text x="180" y="89">No final state</text>
+<path class="edge" d="M180 101 V127" marker-end="url(#arrow-1)"/>
+<text class="label" x="180" y="152">Ordinary total semantics</text>
+<text class="label" x="180" y="173">Σ → Σ is insufficient</text>
+<path class="edge" d="M180 185 V211" marker-end="url(#arrow-1)"/>
+<text x="180" y="237">Partial semantics with ⊥</text>
+</svg></div><figcaption>Figure 1 — 没有最终状态，促使语义的结果空间容纳未定义值。</figcaption></figure>
+<p>要回答的不是如何强行结束循环，而是：<em>如何为可能永不终止的程序赋予数学意义？</em> 第一件事，是让“没有结果”也能被表达。</p>
+</section>
+
+<section class="post-section" aria-labelledby="partial-semantics">
+<h3 id="partial-semantics">2. 加入 bottom，为什么还不够？</h3>
+<p><a href="./a-first-note.html#semantics-category-theory">前一篇讨论 division by zero</a> 时，我们曾在结果集合外加入特殊元素。现在也为状态集合加入一个新元素，但这里它表示未定义，而不是一个可继续读取变量的 memory state：</p>
+<div class="equation"><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi mathvariant="normal">Σ</mi><mi>⊥</mi></msub><mo>=</mo><mi mathvariant="normal">Σ</mi><mover><mo>∪</mo><mo accent="true">̇</mo></mover><mo form="prefix" stretchy="false">{</mo><mi>⊥</mi><mo form="postfix" stretchy="false">}</mo><mo>,</mo><mspace width="2.0em"></mspace><mi>⊥</mi><mo>∉</mo><mi mathvariant="normal">Σ</mi><mi>.</mi></mrow><annotation encoding="application/x-tex">
+\Sigma_\bot=\Sigma\mathbin{\dot\cup}\{\bot\},\qquad \bot\notin\Sigma.
+</annotation></semantics></math></div>
+<p><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi mathvariant="normal">Σ</mi><mo>→</mo><msub><mi mathvariant="normal">Σ</mi><mi>⊥</mi></msub></mrow><annotation encoding="application/x-tex">\Sigma\to\Sigma_\bot</annotation></semantics></math> 在集合论上是 total map，却编码了一个到 Σ 的 <strong>partial map</strong>。由 operational semantics 得到：</p>
+<div class="equation"><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>O</mi><mi>c</mi></msub><mo form="prefix" stretchy="false">(</mo><mi>σ</mi><mo form="postfix" stretchy="false">)</mo><mo>=</mo><mrow><mo form="prefix" stretchy="true">{</mo><mtable><mtr><mtd columnalign="left" style="text-align: left"><msup><mi>σ</mi><mo>′</mo></msup><mo>,</mo></mtd><mtd columnalign="left" style="text-align: left"><mo form="prefix" stretchy="false">⟨</mo><mi>c</mi><mo>,</mo><mi>σ</mi><mo form="postfix" stretchy="false">⟩</mo><mo>⇓</mo><msup><mi>σ</mi><mo>′</mo></msup><mo>,</mo></mtd></mtr><mtr><mtd columnalign="left" style="text-align: left"><mi>⊥</mi><mo>,</mo></mtd><mtd columnalign="left" style="text-align: left"><mi>c</mi><mrow><mspace width="0.333em"></mspace><mtext mathvariant="normal"> diverges on </mtext><mspace width="0.333em"></mspace></mrow><mi>σ</mi><mi>.</mi></mtd></mtr></mtable></mrow></mrow><annotation encoding="application/x-tex">
+O_c(\sigma)=\begin{cases}\sigma',&amp;\langle c,\sigma\rangle\Downarrow\sigma',\\\bot,&amp;c\text{ diverges on }\sigma.\end{cases}
+</annotation></semantics></math></div>
+<p>Imp 的确定性保证 σ′ 唯一，所以这个定义确实给出函数；它并不提供判断任意程序是否终止的算法。在完整语义中，⊥ 表示没有终止结果；在有限近似中，它只表示当前近似尚未给出结果，不能据此断言程序一定发散。</p>
+<p>但加入 ⊥ 只解决了<strong>结果的类型</strong>，还没有告诉我们如何解释循环上下文。设 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>χ</mi><mo form="prefix" stretchy="false">[</mo><mi>−</mi><mo form="postfix" stretchy="false">]</mo><mo>=</mo><mrow><mi>𝚠</mi><mi>𝚑</mi><mi>𝚒</mi><mi>𝚕</mi><mi>𝚎</mi></mrow><mspace width="0.222em"></mspace><mi>y</mi><mo>≥</mo><mn>1</mn><mspace width="0.222em"></mspace><mrow><mi>𝚍</mi><mi>𝚘</mi></mrow><mspace width="0.222em"></mspace><mo form="prefix" stretchy="false">[</mo><mi>−</mi></mrow><annotation encoding="application/x-tex">\chi[-]=\mathtt{while}\ y\geq1\ \mathtt{do}\ [-</annotation></semantics></math>]，σₖ 是 y=k、其余变量相同的状态。noop 在 σ₁ 的输出，与 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>y</mi><mo>:=</mo><mi>y</mi><mo>−</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">y:=y-1</annotation></semantics></math> 在 σ₂ 的输出，都是 σ₁。然而：</p>
+<div class="equation"><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>O</mi><mrow><mi>χ</mi><mo form="prefix" stretchy="false">[</mo><mrow><mi>𝚗</mi><mi>𝚘</mi><mi>𝚘</mi><mi>𝚙</mi></mrow><mo form="postfix" stretchy="false">]</mo></mrow></msub><mo form="prefix" stretchy="false">(</mo><msub><mi>σ</mi><mn>1</mn></msub><mo form="postfix" stretchy="false">)</mo><mo>=</mo><mi>⊥</mi><mo>,</mo><mspace width="2.0em"></mspace><msub><mi>O</mi><mrow><mi>χ</mi><mo form="prefix" stretchy="false">[</mo><mi>y</mi><mo>:=</mo><mi>y</mi><mo>−</mo><mn>1</mn><mo form="postfix" stretchy="false">]</mo></mrow></msub><mo form="prefix" stretchy="false">(</mo><msub><mi>σ</mi><mn>2</mn></msub><mo form="postfix" stretchy="false">)</mo><mo>=</mo><msub><mi>σ</mi><mn>0</mn></msub><mi>.</mi></mrow><annotation encoding="application/x-tex">
+O_{\chi[\mathtt{noop}]}(\sigma_1)=\bot,\qquad O_{\chi[y:=y-1]}(\sigma_2)=\sigma_0.
+</annotation></semantics></math></div>
+<p>因此，不存在只接收一次输出的 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>g</mi><mo>:</mo><msub><mi mathvariant="normal">Σ</mi><mi>⊥</mi></msub><mo>→</mo><msub><mi mathvariant="normal">Σ</mi><mi>⊥</mi></msub></mrow><annotation encoding="application/x-tex">g:\Sigma_\bot\to\Sigma_\bot</annotation></semantics></math>，能对所有 c 满足 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>O</mi><mrow><mi>χ</mi><mo form="prefix" stretchy="false">[</mo><mi>c</mi><mo form="postfix" stretchy="false">]</mo></mrow></msub><mo>=</mo><mi>g</mi><mo>∘</mo><msub><mi>O</mi><mi>c</mi></msub></mrow><annotation encoding="application/x-tex">O_{\chi[c]}=g\circ O_c</annotation></semantics></math>：同一个 σ₁ 会被要求同时映到 ⊥ 和 σ₀。循环还要在后续状态上再次执行 body；它需要知道命令在<strong>所有输入上的行为</strong>。</p>
+<div class="equation"><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>𝒲</mi><mo>=</mo><mo form="prefix" maxsize="120%" minsize="120%" stretchy="true">(</mo><mi mathvariant="normal">Σ</mi><mo>→</mo><msub><mi mathvariant="normal">Σ</mi><mi>⊥</mi></msub><mo form="postfix" maxsize="120%" minsize="120%" stretchy="true">)</mo><mo>,</mo><mspace width="2.0em"></mspace><msub><mi>C</mi><mi>χ</mi></msub><mo>:</mo><mi>𝒲</mi><mo>→</mo><mi>𝒲</mi><mi>.</mi></mrow><annotation encoding="application/x-tex">
+\mathcal W=\bigl(\Sigma\to\Sigma_\bot\bigr),\qquad C_\chi:\mathcal W\to\mathcal W.
+</annotation></semantics></math></div>
+<p>这个类型让 compositional interpretation 成为可能：上下文接收整个 partial map，返回整个程序的 partial map。难点随之转为：循环会重复调用这个行为，怎样从有限描述构造它？</p>
+</section>
+
+<section class="post-section" aria-labelledby="unrolling">
+<h3 id="unrolling">3. 用有限展开逼近循环</h3>
+<p>固定条件的解释 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>b</mi><mo>:</mo><mi mathvariant="normal">Σ</mi><mo>→</mo><mo form="prefix" stretchy="false">{</mo><mrow><mi mathvariant="normal">t</mi><mi mathvariant="normal">r</mi><mi mathvariant="normal">u</mi><mi mathvariant="normal">e</mi></mrow><mo>,</mo><mrow><mi mathvariant="normal">f</mi><mi mathvariant="normal">a</mi><mi mathvariant="normal">l</mi><mi mathvariant="normal">s</mi><mi mathvariant="normal">e</mi></mrow><mo form="postfix" stretchy="false">}</mo></mrow><annotation encoding="application/x-tex">b:\Sigma\to\{\mathrm{true},\mathrm{false}\}</annotation></semantics></math> 和 body 的解释 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>B</mi><mo>:</mo><mi mathvariant="normal">Σ</mi><mo>→</mo><msub><mi mathvariant="normal">Σ</mi><mi>⊥</mi></msub></mrow><annotation encoding="application/x-tex">B:\Sigma\to\Sigma_\bot</annotation></semantics></math>。循环的一次展开是“条件假则返回；条件真则执行 body，再继续循环”。先把未知的后续循环换成候选 partial map w，得到：</p>
+<div class="equation"><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi mathvariant="normal">Φ</mi><mi>B</mi></msub><mo form="prefix" stretchy="false">(</mo><mi>w</mi><mo form="postfix" stretchy="false">)</mo><mo form="prefix" stretchy="false">(</mo><mi>σ</mi><mo form="postfix" stretchy="false">)</mo><mo>=</mo><mrow><mo form="prefix" stretchy="true">{</mo><mtable><mtr><mtd columnalign="left" style="text-align: left"><mi>σ</mi><mo>,</mo></mtd><mtd columnalign="left" style="text-align: left"><mi>b</mi><mo form="prefix" stretchy="false">(</mo><mi>σ</mi><mo form="postfix" stretchy="false">)</mo><mo>=</mo><mrow><mi mathvariant="normal">f</mi><mi mathvariant="normal">a</mi><mi mathvariant="normal">l</mi><mi mathvariant="normal">s</mi><mi mathvariant="normal">e</mi></mrow><mo>,</mo></mtd></mtr><mtr><mtd columnalign="left" style="text-align: left"><mi>w</mi><mo form="prefix" stretchy="false">(</mo><msup><mi>σ</mi><mo>′</mo></msup><mo form="postfix" stretchy="false">)</mo><mo>,</mo></mtd><mtd columnalign="left" style="text-align: left"><mi>b</mi><mo form="prefix" stretchy="false">(</mo><mi>σ</mi><mo form="postfix" stretchy="false">)</mo><mo>=</mo><mrow><mi mathvariant="normal">t</mi><mi mathvariant="normal">r</mi><mi mathvariant="normal">u</mi><mi mathvariant="normal">e</mi></mrow><mo>,</mo><mspace width="0.222em"></mspace><mi>B</mi><mo form="prefix" stretchy="false">(</mo><mi>σ</mi><mo form="postfix" stretchy="false">)</mo><mo>=</mo><msup><mi>σ</mi><mo>′</mo></msup><mo>,</mo></mtd></mtr><mtr><mtd columnalign="left" style="text-align: left"><mi>⊥</mi><mo>,</mo></mtd><mtd columnalign="left" style="text-align: left"><mi>b</mi><mo form="prefix" stretchy="false">(</mo><mi>σ</mi><mo form="postfix" stretchy="false">)</mo><mo>=</mo><mrow><mi mathvariant="normal">t</mi><mi mathvariant="normal">r</mi><mi mathvariant="normal">u</mi><mi mathvariant="normal">e</mi></mrow><mo>,</mo><mspace width="0.222em"></mspace><mi>B</mi><mo form="prefix" stretchy="false">(</mo><mi>σ</mi><mo form="postfix" stretchy="false">)</mo><mo>=</mo><mi>⊥</mi><mi>.</mi></mtd></mtr></mtable></mrow></mrow><annotation encoding="application/x-tex">
+\Phi_B(w)(\sigma)=\begin{cases}\sigma,&amp;b(\sigma)=\mathrm{false},\\w(\sigma'),&amp;b(\sigma)=\mathrm{true},\ B(\sigma)=\sigma',\\\bot,&amp;b(\sigma)=\mathrm{true},\ B(\sigma)=\bot.\end{cases}
+</annotation></semantics></math></div>
+<p>这里 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi mathvariant="normal">Φ</mi><mi>B</mi></msub><mo>:</mo><mi>𝒲</mi><mo>→</mo><mi>𝒲</mi></mrow><annotation encoding="application/x-tex">\Phi_B:\mathcal W\to\mathcal W</annotation></semantics></math> 固定了 body B，变化的是剩余循环的近似 w；上一节的 Cχ 则以 body 的语义为输入，两者类型相同、角色不同。最保守的起点是不宣称任何输入会终止，再逐次展开：</p>
+<div class="equation"><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>w</mi><mn>0</mn></msub><mo form="prefix" stretchy="false">(</mo><mi>σ</mi><mo form="postfix" stretchy="false">)</mo><mo>=</mo><mi>⊥</mi><mo>,</mo><mspace width="2.0em"></mspace><msub><mi>w</mi><mrow><mi>n</mi><mo>+</mo><mn>1</mn></mrow></msub><mo>=</mo><msub><mi mathvariant="normal">Φ</mi><mi>B</mi></msub><mo form="prefix" stretchy="false">(</mo><msub><mi>w</mi><mi>n</mi></msub><mo form="postfix" stretchy="false">)</mo><mi>.</mi></mrow><annotation encoding="application/x-tex">
+w_0(\sigma)=\bot,\qquad w_{n+1}=\Phi_B(w_n).
+</annotation></semantics></math></div>
+<p>考虑 <code>while y ≥ 1 do y := y − 1</code>，整数初值记为 n。w₁ 已能识别入口条件为假的输入；w₂ 能再识别执行一次 body 后退出的输入。图 2 显示了这个过程。</p>
+<figure id="figure-2">
+<div class="diagram-scroll"><svg class="wide-diagram" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 560 185" role="img" aria-labelledby="fig-2-title fig-2-desc">
+<title id="fig-2-title">Figure 2 — Loop Approximation Chain</title><desc id="fig-2-desc">递减循环的近似链：下方标出已能确定最终状态的输入 n；展开增加信息，不改写已有答案。</desc>
+<defs><marker id="arrow-2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 1 L 9 5 L 0 9" fill="none" stroke="#596650" stroke-width="1.4"/></marker>
+<marker id="blue-2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 1 L 9 5 L 0 9" fill="none" stroke="#526a83" stroke-width="1.4"/></marker></defs>
+
+<text class="math-label" x="50" y="40">w₀</text><text x="105" y="40">⊑</text>
+<text class="math-label" x="160" y="40">w₁</text><text x="215" y="40">⊑</text>
+<text class="math-label" x="270" y="40">w₂</text><text x="325" y="40">⊑</text>
+<text class="math-label" x="380" y="40">w₃</text><text x="435" y="40">⊑</text><text x="495" y="40">⋯</text>
+<text class="label" x="50" y="77">0 展开</text><text class="label" x="160" y="77">1 展开</text><text class="label" x="270" y="77">2 展开</text><text class="label" x="380" y="77">3 展开</text>
+<text class="label" x="50" y="104">全未定义</text><text class="label" x="160" y="104">n ≤ 0</text><text class="label" x="270" y="104">n ≤ 1</text><text class="label" x="380" y="104">n ≤ 2</text>
+<path class="construct" d="M50 134 H500" marker-end="url(#blue-2)"/>
+<text class="label" x="275" y="163">More defined results; earlier results stay unchanged.</text>
+</svg></div><figcaption>Figure 2 — 递减循环的近似链：下方标出已能确定最终状态的输入 n；展开增加信息，不改写已有答案。</figcaption></figure>
+<p>本文按 transformer 的应用次数编号：wₖ₊₁ 至多确认执行 k 次 body 后退出的结果；“一次展开”不等于“已能确认一次 body 后终止”。教材将能确认一次 body 后退出的近似记作 w₁，本文为了从全未定义的 w₀ 开始，编号相应平移。</p>
+<p>每次展开都可能揭示更多输入的最终状态，却不能推翻已经确定的状态。对于 Ω，每个有限近似仍为 ⊥。现在我们需要精确定义：怎样比较两个近似的信息量？</p>
+</section>
+
+<section class="post-section" aria-labelledby="partial-orders">
+<h3 id="partial-orders">4. 偏序：比较信息，而不只是大小</h3>
+<p>“至少具有同样多的信息”应当能比较自身，也应当能沿比较链传递。满足这两条的关系称为 <strong>preorder</strong>；再要求双向比较只能发生在同一元素上，就得到 <strong>partial order</strong>：</p>
+<div class="equation"><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mtable><mtr><mtd columnalign="right" style="text-align: right; padding-right: 0"><mi>x</mi></mtd><mtd columnalign="left" style="text-align: left; padding-left: 0"><mo>≤</mo><mi>x</mi></mtd><mtd columnalign="right" style="text-align: right; padding-right: 0"></mtd><mtd columnalign="left" style="text-align: left; padding-left: 0"><mtext mathvariant="normal">(reflexivity)</mtext><mo>,</mo></mtd></mtr><mtr><mtd columnalign="right" style="text-align: right; padding-right: 0"><mi>x</mi><mo>≤</mo><mi>y</mi><mspace width="0.222em"></mspace><mo>∧</mo><mspace width="0.222em"></mspace><mi>y</mi><mo>≤</mo><mi>z</mi></mtd><mtd columnalign="left" style="text-align: left; padding-left: 0"><mo>⇒</mo><mi>x</mi><mo>≤</mo><mi>z</mi></mtd><mtd columnalign="right" style="text-align: right; padding-right: 0"></mtd><mtd columnalign="left" style="text-align: left; padding-left: 0"><mtext mathvariant="normal">(transitivity)</mtext><mo>,</mo></mtd></mtr><mtr><mtd columnalign="right" style="text-align: right; padding-right: 0"><mi>x</mi><mo>≤</mo><mi>y</mi><mspace width="0.222em"></mspace><mo>∧</mo><mspace width="0.222em"></mspace><mi>y</mi><mo>≤</mo><mi>x</mi></mtd><mtd columnalign="left" style="text-align: left; padding-left: 0"><mo>⇒</mo><mi>x</mi><mo>=</mo><mi>y</mi></mtd><mtd columnalign="right" style="text-align: right; padding-right: 0"></mtd><mtd columnalign="left" style="text-align: left; padding-left: 0"><mtext mathvariant="normal">(antisymmetry)</mtext><mi>.</mi></mtd></mtr></mtable><annotation encoding="application/x-tex">
+\begin{aligned}x&amp;\leq x &amp;&amp;\text{(reflexivity)},\\x\leq y\ \land\ y\leq z&amp;\Rightarrow x\leq z &amp;&amp;\text{(transitivity)},\\x\leq y\ \land\ y\leq x&amp;\Rightarrow x=y &amp;&amp;\text{(antisymmetry)}.\end{aligned}
+</annotation></semantics></math></div>
+<p>集合 P 连同这样的关系组成 <strong>poset</strong> <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo form="prefix" stretchy="false">(</mo><mi>P</mi><mo>,</mo><mo>≤</mo><mo form="postfix" stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">(P,\leq)</annotation></semantics></math>。反对称性并非“不能双向比较”，而是“双向比较意味着相等”。它让“包含完全相同信息的两个近似”真正成为同一个数学对象。</p>
+<p>序也不必表示数值大小：实数上的 ≤、幂集 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>𝒫</mi><mo form="prefix" stretchy="false">(</mo><mi>X</mi><mo form="postfix" stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">\mathcal P(X)</annotation></semantics></math> 上的包含关系，以及自然数上的整除关系，都满足这些公理。图 6 取它们的有限子偏序作比较；Hasse 图以向上表示更大，只画覆盖关系。</p>
+<figure id="figure-6">
+<div class="diagram-scroll"><svg class="wide-diagram" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 560 245" role="img" aria-labelledby="fig-6-title fig-6-desc">
+<title id="fig-6-title">Figure 6 — Examples of Partial Orders</title><desc id="fig-6-desc">三个有限子偏序的 Hasse 图：向上表示更大，省略自反边和可由传递性推出的边；右图的 2 与 3 不可比。</desc>
+<defs><marker id="arrow-6" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 1 L 9 5 L 0 9" fill="none" stroke="#596650" stroke-width="1.4"/></marker>
+<marker id="blue-6" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 1 L 9 5 L 0 9" fill="none" stroke="#526a83" stroke-width="1.4"/></marker></defs>
+
+<text class="label" x="90" y="26">Usual order</text><text class="label" x="280" y="26">Subset inclusion</text><text class="label" x="470" y="26">Divisibility</text>
+<text x="90" y="68">3</text><text x="90" y="128">2</text><text x="90" y="188">1</text><path class="edge" d="M90 77 V105 M90 137 V165"/>
+<text x="280" y="68">{a, b}</text><text x="280" y="188">{a}</text><path class="edge" d="M280 80 V164"/>
+<text x="470" y="68">6</text><text x="423" y="128">2</text><text x="517" y="128">3</text><text x="470" y="188">1</text>
+<path class="edge" d="M462 77 L431 105 M478 77 L509 105 M431 137 L462 165 M509 137 L478 165"/>
+<text class="label" x="90" y="225">{1, 2, 3}</text><text class="label" x="280" y="225">{{a}, {a, b}}</text><text class="label" x="470" y="225">{1, 2, 3, 6}</text>
+</svg></div><figcaption>Figure 6 — 三个有限子偏序的 Hasse 图：向上表示更大，省略自反边和可由传递性推出的边；右图的 2 与 3 不可比。</figcaption></figure>
+<p>在 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo form="prefix" stretchy="false">(</mo><mi>ℝ</mi><mo>,</mo><mo>≤</mo><mo form="postfix" stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">(\mathbb R,\leq)</annotation></semantics></math> 中任意两数可比较；在 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo form="prefix" stretchy="false">(</mo><mi>ℕ</mi><mo>,</mo><mi>∣</mi><mo form="postfix" stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">(\mathbb N,\mid)</annotation></semantics></math> 中，2 与 3 却互不整除。类似地，{a} 与 {b} 互不包含。<strong>Partial</strong> 正是允许这样的不可比性：信息可能不同，而不是总有一方更丰富。这里约定 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>ℕ</mi><mo>=</mo><mo form="prefix" stretchy="false">{</mo><mn>0</mn><mo>,</mo><mn>1</mn><mo>,</mo><mn>2</mn><mo>,</mo><mi>…</mi><mo form="postfix" stretchy="false">}</mo></mrow><annotation encoding="application/x-tex">\mathbb N=\{0,1,2,\ldots\}</annotation></semantics></math>；整除序中 1 最小，0 最大，与通常的数值序不同。</p>
+</section>
+
+<section class="post-section" aria-labelledby="flat-pointwise">
+<h3 id="flat-pointwise">5. 从 flat order 到 partial maps 的逐点序</h3>
+<p>不同的完整 memory states 是不同答案，不应因为某个变量数值更大就被认为“更好”。所以，先在普通结果集合 X 上使用 <strong>discrete order</strong>，再把未知值放在所有结果之下：</p>
+<div class="equation"><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>x</mi><msub><mo>≤</mo><mrow><mi mathvariant="normal">d</mi><mi mathvariant="normal">i</mi><mi mathvariant="normal">s</mi><mi mathvariant="normal">c</mi></mrow></msub><mi>y</mi><mo>⇔</mo><mi>x</mi><mo>=</mo><mi>y</mi><mo>,</mo><mspace width="2.0em"></mspace><mi>u</mi><msub><mo>≤</mo><mi>⊥</mi></msub><mi>v</mi><mo>⇔</mo><mi>u</mi><mo>=</mo><mi>⊥</mi><mspace width="0.222em"></mspace><mo>∨</mo><mspace width="0.222em"></mspace><mi>u</mi><mo>=</mo><mi>v</mi><mi>.</mi></mrow><annotation encoding="application/x-tex">
+x\leq_{\mathrm{disc}}y\iff x=y,\qquad u\leq_\bot v\iff u=\bot\ \lor\ u=v.
+</annotation></semantics></math></div>
+<p>后一个关系称为 <strong>flat order</strong>。图 3 中只有 bottom 可以向不同结果增长；x、y、z 之间没有序关系。</p>
+<figure id="figure-3">
+<div class="diagram-scroll"><svg class="compact-diagram" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 220" role="img" aria-labelledby="fig-3-title fig-3-desc">
+<title id="fig-3-title">Figure 3 — Flat Poset</title><desc id="fig-3-desc">Flat order：bottom 小于每个定义值，不同定义值之间互不可比。</desc>
+<defs><marker id="arrow-3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 1 L 9 5 L 0 9" fill="none" stroke="#596650" stroke-width="1.4"/></marker>
+<marker id="blue-3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 1 L 9 5 L 0 9" fill="none" stroke="#526a83" stroke-width="1.4"/></marker></defs>
+
+<path class="edge" d="M172 139 L76 51 M180 137 V51 M188 139 L284 51"/>
+<text class="math-label" x="70" y="39">x</text><text class="math-label" x="180" y="39">y</text><text class="math-label" x="290" y="39">z</text>
+<text class="math-label" x="180" y="163">⊥</text><text class="label" x="180" y="203">⊥ ≤ every defined value; x, y, z incomparable.</text>
+</svg></div><figcaption>Figure 3 — Flat order：bottom 小于每个定义值，不同定义值之间互不可比。</figcaption></figure>
+<p>这正好刻画“增加确定性”：从 ⊥ 到 x 是得到答案，从 x 到另一个答案 y 则是更改答案。我们需要允许前者、排除后者。</p>
+<p>要比较整个函数，把结果上的序逐点提升即可。对任意 poset P 和函数 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>f</mi><mo>,</mo><mi>g</mi><mo>:</mo><mi>X</mi><mo>→</mo><mi>P</mi></mrow><annotation encoding="application/x-tex">f,g:X\to P</annotation></semantics></math>，定义 <strong>pointwise order</strong>：</p>
+<div class="equation"><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>f</mi><mo>⊑</mo><mi>g</mi><mo>⇔</mo><mo>∀</mo><mi>x</mi><mo>∈</mo><mi>X</mi><mo>,</mo><mspace width="0.222em"></mspace><mi>f</mi><mo form="prefix" stretchy="false">(</mo><mi>x</mi><mo form="postfix" stretchy="false">)</mo><msub><mo>≤</mo><mi>P</mi></msub><mi>g</mi><mo form="prefix" stretchy="false">(</mo><mi>x</mi><mo form="postfix" stretchy="false">)</mo><mi>.</mi></mrow><annotation encoding="application/x-tex">
+f\sqsubseteq g\iff\forall x\in X,\ f(x)\leq_P g(x).
+</annotation></semantics></math></div>
+<p>当 P 是 flat poset 时，这就意味着：凡是 f 已经定义的输入，g 必须返回相同结果；f 未定义的输入，g 可以继续未定义，也可以给出结果。图 4 用数值结果演示；换成 memory states 完全一样。</p>
+<figure id="figure-4">
+<div class="diagram-scroll"><svg class="wide-diagram" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 560 195" role="img" aria-labelledby="fig-4-title fig-4-desc">
+<title id="fig-4-title">Figure 4 — Pointwise Order on Partial Maps</title><desc id="fig-4-desc">逐点检查 flat order：可以填补未知值，但不能把已确定的 7 改成其他值。</desc>
+<defs><marker id="arrow-4" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 1 L 9 5 L 0 9" fill="none" stroke="#596650" stroke-width="1.4"/></marker>
+<marker id="blue-4" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 1 L 9 5 L 0 9" fill="none" stroke="#526a83" stroke-width="1.4"/></marker></defs>
+
+<text class="label" x="55" y="28">Input</text><text x="160" y="28">f(x)</text><text x="280" y="28">g(x)</text>
+<path class="rule" d="M20 44 H320"/>
+<text x="55" y="80">x₁</text><text x="160" y="80">⊥</text><text x="280" y="80">5</text>
+<path class="construct" d="M184 73 H253" marker-end="url(#blue-4)"/>
+<text x="55" y="126">x₂</text><text x="160" y="126">7</text><text x="280" y="126">7</text><text class="label" x="219" y="126">=</text>
+<text x="55" y="172">x₃</text><text x="160" y="172">⊥</text><text x="280" y="172">⊥</text><text class="label" x="219" y="172">=</text>
+<text class="math-label" x="433" y="85">f ⊑ g</text><text class="label" x="433" y="120">More defined information,</text><text class="label" x="433" y="143">no contradiction.</text>
+</svg></div><figcaption>Figure 4 — 逐点检查 flat order：可以填补未知值，但不能把已确定的 7 改成其他值。</figcaption></figure>
+<p><strong>Proof sketch.</strong> 自反性和传递性逐点继承自 P。若 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>f</mi><mo>⊑</mo><mi>g</mi></mrow><annotation encoding="application/x-tex">f\sqsubseteq g</annotation></semantics></math> 且 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>g</mi><mo>⊑</mo><mi>f</mi></mrow><annotation encoding="application/x-tex">g\sqsubseteq f</annotation></semantics></math>，则 P 的反对称性给出每个 x 上 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>f</mi><mo form="prefix" stretchy="false">(</mo><mi>x</mi><mo form="postfix" stretchy="false">)</mo><mo>=</mo><mi>g</mi><mo form="prefix" stretchy="false">(</mo><mi>x</mi><mo form="postfix" stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">f(x)=g(x)</annotation></semantics></math>，再由函数外延性得到 f=g。因此函数空间本身也是 poset。</p>
+<p>取 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>P</mi><mo>=</mo><msub><mi mathvariant="normal">Σ</mi><mi>⊥</mi></msub></mrow><annotation encoding="application/x-tex">P=\Sigma_\bot</annotation></semantics></math>，就得到了循环语义空间 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo form="prefix" stretchy="false">(</mo><mi>𝒲</mi><mo>,</mo><mo>⊑</mo><mo form="postfix" stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">(\mathcal W,\sqsubseteq)</annotation></semantics></math>。全未定义函数 w₀ 在所有函数之下；只要展开操作保留这个序，就能严格推出图 2 的 ascending chain。</p>
+</section>
+
+<section class="post-section" aria-labelledby="monotonicity">
+<h3 id="monotonicity">6. 单调映射：保留近似关系</h3>
+<p>如果把未知的后续循环替换为信息更充分的版本，完整展开的结果也不应变差。一般地，posets 之间的映射 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>F</mi><mo>:</mo><mi>P</mi><mo>→</mo><mi>Q</mi></mrow><annotation encoding="application/x-tex">F:P\to Q</annotation></semantics></math> 称为 <strong>monotone</strong>，当且仅当：</p>
+<div class="equation"><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>x</mi><msub><mo>≤</mo><mi>P</mi></msub><mi>y</mi><mo>⇒</mo><mi>F</mi><mo form="prefix" stretchy="false">(</mo><mi>x</mi><mo form="postfix" stretchy="false">)</mo><msub><mo>≤</mo><mi>Q</mi></msub><mi>F</mi><mo form="prefix" stretchy="false">(</mo><mi>y</mi><mo form="postfix" stretchy="false">)</mo><mi>.</mi></mrow><annotation encoding="application/x-tex">
+x\leq_P y\Rightarrow F(x)\leq_Q F(y).
+</annotation></semantics></math></div>
+<p>图 5 将这个条件画成保序的方形：竖直方向是应用 F，水平方向只是序关系。</p>
+<figure id="figure-5">
+<div class="diagram-scroll"><svg class="compact-diagram" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 235" role="img" aria-labelledby="fig-5-title fig-5-desc">
+<title id="fig-5-title">Figure 5 — Monotonicity</title><desc id="fig-5-desc">Monotonicity：输入之间的近似关系，在应用 F 后仍然成立。横向虚线不是函数箭头。</desc>
+<defs><marker id="arrow-5" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 1 L 9 5 L 0 9" fill="none" stroke="#596650" stroke-width="1.4"/></marker>
+<marker id="blue-5" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 1 L 9 5 L 0 9" fill="none" stroke="#526a83" stroke-width="1.4"/></marker></defs>
+
+<text class="math-label" x="65" y="40">x</text><text class="math-label" x="290" y="40">y</text>
+<path class="relation" d="M89 33 H157 M198 33 H264"/><text x="178" y="40">≤</text>
+<path class="edge" d="M65 57 V139" marker-end="url(#arrow-5)"/>
+<path class="edge" d="M290 57 V139" marker-end="url(#arrow-5)"/>
+<text x="41" y="106">F</text><text x="317" y="106">F</text>
+<text class="math-label" x="65" y="173">F(x)</text><text class="math-label" x="290" y="173">F(y)</text>
+<path class="relation" d="M104 166 H157 M198 166 H249"/><text x="178" y="173">≤</text>
+<text class="label" x="180" y="214">虚线：序关系　实线箭头：函数作用</text>
+</svg></div><figcaption>Figure 5 — Monotonicity：输入之间的近似关系，在应用 F 后仍然成立。横向虚线不是函数箭头。</figcaption></figure>
+<p>对上面的 ΦB，可以直接逐项检查。条件为假时，两种展开都返回原状态；body 未定义时，两者都返回 ⊥；body 返回 σ′ 时，结论来自 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>w</mi><mo form="prefix" stretchy="false">(</mo><msup><mi>σ</mi><mo>′</mo></msup><mo form="postfix" stretchy="false">)</mo><msub><mo>≤</mo><mi>⊥</mi></msub><mi>v</mi><mo form="prefix" stretchy="false">(</mo><msup><mi>σ</mi><mo>′</mo></msup><mo form="postfix" stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">w(\sigma')\leq_\bot v(\sigma')</annotation></semantics></math>。所以 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>w</mi><mo>⊑</mo><mi>v</mi><mo>⇒</mo><msub><mi mathvariant="normal">Φ</mi><mi>B</mi></msub><mo form="prefix" stretchy="false">(</mo><mi>w</mi><mo form="postfix" stretchy="false">)</mo><mo>⊑</mo><msub><mi mathvariant="normal">Φ</mi><mi>B</mi></msub><mo form="prefix" stretchy="false">(</mo><mi>v</mi><mo form="postfix" stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">w\sqsubseteq v\Rightarrow\Phi_B(w)\sqsubseteq\Phi_B(v)</annotation></semantics></math>。</p>
+<p>现在 w₀ 是最小元素，故 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>w</mi><mn>0</mn></msub><mo>⊑</mo><msub><mi>w</mi><mn>1</mn></msub></mrow><annotation encoding="application/x-tex">w_0\sqsubseteq w_1</annotation></semantics></math>；若 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>w</mi><mi>n</mi></msub><mo>⊑</mo><msub><mi>w</mi><mrow><mi>n</mi><mo>+</mo><mn>1</mn></mrow></msub></mrow><annotation encoding="application/x-tex">w_n\sqsubseteq w_{n+1}</annotation></semantics></math>，单调性就给出 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>w</mi><mrow><mi>n</mi><mo>+</mo><mn>1</mn></mrow></msub><mo>⊑</mo><msub><mi>w</mi><mrow><mi>n</mi><mo>+</mo><mn>2</mn></mrow></msub></mrow><annotation encoding="application/x-tex">w_{n+1}\sqsubseteq w_{n+2}</annotation></semantics></math>。归纳得到整条上升链。这说明 monotonicity 如何把局部的保序要求变成稳定的近似过程，但单调性本身还不保证任意 poset 上存在不动点。</p>
+<p>将 posets 作为 objects、monotone maps 作为 morphisms，就得到范畴 <strong>Pos</strong>。恒等映射保序；两个保序映射的复合也保序。因此前一篇的 categorical language 可以直接用于这些语义空间。</p>
+</section>
+
+<section class="post-section" aria-labelledby="extrema">
+<h3 id="extrema">7. 对偶、极值与 strict maps</h3>
+<p>w₀ 的特别之处是它在所有近似之下。要准确描述这种“起点”，需要区分 <strong>minimum（最小元）</strong> 与 <strong>minimal（极小元）</strong>。对 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>A</mi><mo>⊆</mo><mi>P</mi></mrow><annotation encoding="application/x-tex">A\subseteq P</annotation></semantics></math>、<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>m</mi><mo>∈</mo><mi>A</mi></mrow><annotation encoding="application/x-tex">m\in A</annotation></semantics></math>：</p>
+<div class="equation"><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mtable><mtr><mtd columnalign="right" style="text-align: right; padding-right: 0"><mi>m</mi><mrow><mspace width="0.333em"></mspace><mtext mathvariant="normal"> is minimum</mtext></mrow></mtd><mtd columnalign="left" style="text-align: left; padding-left: 0"><mo>⇔</mo><mo>∀</mo><mi>x</mi><mo>∈</mo><mi>A</mi><mo>,</mo><mspace width="0.222em"></mspace><mi>m</mi><mo>≤</mo><mi>x</mi><mo>,</mo></mtd></mtr><mtr><mtd columnalign="right" style="text-align: right; padding-right: 0"><mi>m</mi><mrow><mspace width="0.333em"></mspace><mtext mathvariant="normal"> is minimal</mtext></mrow></mtd><mtd columnalign="left" style="text-align: left; padding-left: 0"><mo>⇔</mo><mo>∀</mo><mi>x</mi><mo>∈</mo><mi>A</mi><mo>,</mo><mspace width="0.222em"></mspace><mi>x</mi><mo>≤</mo><mi>m</mi><mo>⇒</mo><mi>x</mi><mo>=</mo><mi>m</mi><mi>.</mi></mtd></mtr></mtable><annotation encoding="application/x-tex">
+\begin{aligned}m\text{ is minimum}&amp;\iff\forall x\in A,\ m\leq x,\\m\text{ is minimal}&amp;\iff\forall x\in A,\ x\leq m\Rightarrow x=m.\end{aligned}
+</annotation></semantics></math></div>
+<p>最小元必须低于所有元素；极小元只要求没有严格更小的元素。图 8 的右侧有两个无法互相比较的起点，因而没有一个能担当整个集合的 minimum。</p>
+<figure id="figure-8">
+<div class="diagram-scroll"><svg class="wide-diagram" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 560 240" role="img" aria-labelledby="fig-8-title fig-8-desc">
+<title id="fig-8-title">Figure 8 — Minimum vs Minimal</title><desc id="fig-8-desc">Every minimum is minimal, but not every minimal element is a minimum. 左图 a 是最小元；右图 a、b 都是极小元，却没有最小元。</desc>
+<defs><marker id="arrow-8" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 1 L 9 5 L 0 9" fill="none" stroke="#596650" stroke-width="1.4"/></marker>
+<marker id="blue-8" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 1 L 9 5 L 0 9" fill="none" stroke="#526a83" stroke-width="1.4"/></marker></defs>
+
+<text class="label" x="140" y="25">A minimum exists</text><text class="label" x="420" y="25">Two minimal elements</text>
+<text x="90" y="76">b</text><text x="190" y="76">c</text><text x="140" y="180">a</text>
+<path class="edge" d="M97 87 L133 155 M183 87 L147 155"/>
+<text class="label" x="140" y="216">a ≤ every element</text>
+<text x="420" y="76">c</text><text x="370" y="180">a</text><text x="470" y="180">b</text>
+<path class="edge" d="M413 87 L377 155 M427 87 L463 155"/>
+<text class="label" x="420" y="216">a and b are incomparable</text>
+</svg></div><figcaption>Figure 8 — Every minimum is minimal, but not every minimal element is a minimum. 左图 a 是最小元；右图 a、b 都是极小元，却没有最小元。</figcaption></figure>
+<p><strong>唯一性.</strong> 若 m、m′ 都是最小元，则 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>m</mi><mo>≤</mo><msup><mi>m</mi><mo>′</mo></msup></mrow><annotation encoding="application/x-tex">m\leq m'</annotation></semantics></math> 且 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msup><mi>m</mi><mo>′</mo></msup><mo>≤</mo><mi>m</mi></mrow><annotation encoding="application/x-tex">m'\leq m</annotation></semantics></math>，由反对称性得到 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>m</mi><mo>=</mo><msup><mi>m</mi><mo>′</mo></msup></mrow><annotation encoding="application/x-tex">m=m'</annotation></semantics></math>。极小元不具备这项唯一性。</p>
+<p>将关系反转，定义 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>x</mi><msup><mo>≤</mo><mrow><mi mathvariant="normal">o</mi><mi mathvariant="normal">p</mi></mrow></msup><mi>y</mi><mo>⇔</mo><mi>y</mi><mo>≤</mo><mi>x</mi></mrow><annotation encoding="application/x-tex">x\leq^{\mathrm{op}}y\iff y\leq x</annotation></semantics></math>，得到 <strong>opposite order</strong>。在反序中取 minimum、minimal，就是原序中的 <strong>maximum（最大元）</strong>、<strong>maximal（极大元）</strong>：前者高于全部元素，后者只要求没有严格更大的元素。它们的区别和唯一性结论与上面完全对偶。Hasse 图也只需上下翻转；这比为每个概念另写一套理论更简洁。</p>
+<p>若整个 P 有最小元，就称 P 为 <strong>based poset</strong>，记最小元为 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>⊥</mi><mi>P</mi></msub><annotation encoding="application/x-tex">\bot_P</annotation></semantics></math>。这个 bottom 由序唯一决定，不是任意选定的 base point。在 based posets 之间，我们还关心单调映射是否把“完全没有信息”送到“完全没有信息”：</p>
+<div class="equation"><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>f</mi><mo form="prefix" stretchy="false">(</mo><msub><mi>⊥</mi><mi>P</mi></msub><mo form="postfix" stretchy="false">)</mo><mo>=</mo><msub><mi>⊥</mi><mi>Q</mi></msub><mi>.</mi></mrow><annotation encoding="application/x-tex">
+f(\bot_P)=\bot_Q.
+</annotation></semantics></math></div>
+<p>满足此条件的单调映射称为 <strong>strict map</strong>。保序与保 bottom 是不同要求：flat poset 上恒取某个定义值的函数是单调的，却不 strict；另一方面，在链 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>⊥</mi><mo>&lt;</mo><mi>a</mi><mo>&lt;</mo><mi>b</mi></mrow><annotation encoding="application/x-tex">\bot&lt;a&lt;b</annotation></semantics></math> 上固定 ⊥、交换 a 和 b 的函数保 bottom，却不单调，因而也不是这里的 strict map。特别地，strict 并不指“严格递增”。</p>
+</section>
+
+<section class="post-section" aria-labelledby="categories">
+<h3 id="categories">8. 把这些构造放回范畴图中</h3>
+<p>我们已经有了两种给集合添加序的方式，以及两种对 based posets 的态射要求。图 7 重画了 Chapter 5 章末的结构，先明确四个范畴的类型：</p>
+<div class="table-scroll"><table><thead><tr><th scope="col">Category</th><th scope="col">Objects</th><th scope="col">Morphisms</th></tr></thead><tbody>
+<tr><th scope="row">Set</th><td>集合</td><td>函数</td></tr>
+<tr><th scope="row">Pos</th><td>偏序集</td><td>单调映射</td></tr>
+<tr><th scope="row">Pos<sub>⊥</sub></th><td>有最小元的偏序集</td><td>所有单调映射</td></tr>
+<tr><th scope="row">Pos<sub>s</sub></th><td>有最小元的偏序集</td><td>保持 bottom 的单调映射</td></tr>
+</tbody></table></div>
+<figure id="figure-7">
+<div class="diagram-scroll"><svg class="wide-diagram" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 560 370" role="img" aria-labelledby="fig-7-title fig-7-desc">
+<title id="fig-7-title">Figure 7 — Categories and Functors</title><desc id="fig-7-desc">横向是范畴嵌入；三条向下的函子遗忘到 Set；外侧 Flat 和 Disc 都从 Set 出发。</desc>
+<defs><marker id="arrow-7" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 1 L 9 5 L 0 9" fill="none" stroke="#596650" stroke-width="1.4"/></marker>
+<marker id="blue-7" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 1 L 9 5 L 0 9" fill="none" stroke="#526a83" stroke-width="1.4"/></marker></defs>
+
+<text class="math-label" x="85" y="55">Pos<tspan baseline-shift="sub" font-size="16">s</tspan></text>
+<text class="math-label" x="280" y="55">Pos<tspan baseline-shift="sub" font-size="16">⊥</tspan></text>
+<text class="math-label" x="475" y="55">Pos</text>
+<path class="edge" d="M126 47 H233" marker-end="url(#arrow-7)"/>
+<path class="edge" d="M323 47 H433" marker-end="url(#arrow-7)"/>
+<text class="label" x="180" y="28">inclusion J</text><text class="label" x="378" y="28">inclusion I</text>
+<text class="math-label" x="280" y="303">Set</text>
+<path class="edge" d="M104 73 Q149 191 254 279" marker-end="url(#arrow-7)"/>
+<text class="label" x="194" y="178">UIJ</text>
+<path class="edge" d="M280 76 V270" marker-end="url(#arrow-7)"/>
+<text class="label" x="302" y="171">UI</text>
+<path class="edge" d="M455 73 Q411 191 306 279" marker-end="url(#arrow-7)"/>
+<text class="label" x="374" y="178">U</text>
+<path class="construct" d="M243 299 C61 296 30 169 70 78" marker-end="url(#blue-7)"/>
+<text class="label" x="28" y="214">Flat</text>
+<path class="construct" d="M317 299 C499 296 530 169 490 78" marker-end="url(#blue-7)"/>
+<text class="label" x="534" y="214">Disc</text>
+<text class="label" x="280" y="347">灰色向下：forgetful　蓝色向上：add structure</text>
+</svg></div><figcaption>Figure 7 — 横向是范畴嵌入；三条向下的函子遗忘到 Set；外侧 Flat 和 Disc 都从 Set 出发。</figcaption></figure>
+<p>横向 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>J</mi><mo>:</mo><msub><mrow><mi mathvariant="normal">P</mi><mi mathvariant="normal">o</mi><mi mathvariant="normal">s</mi></mrow><mi>s</mi></msub><mo>→</mo><msub><mrow><mi mathvariant="normal">P</mi><mi mathvariant="normal">o</mi><mi mathvariant="normal">s</mi></mrow><mi>⊥</mi></msub></mrow><annotation encoding="application/x-tex">J:\mathrm{Pos}_s\to\mathrm{Pos}_\bot</annotation></semantics></math> 保留对象，放宽态射必须 strict 的要求；<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>I</mi><mo>:</mo><msub><mrow><mi mathvariant="normal">P</mi><mi mathvariant="normal">o</mi><mi mathvariant="normal">s</mi></mrow><mi>⊥</mi></msub><mo>→</mo><mrow><mi mathvariant="normal">P</mi><mi mathvariant="normal">o</mi><mi mathvariant="normal">s</mi></mrow></mrow><annotation encoding="application/x-tex">I:\mathrm{Pos}_\bot\to\mathrm{Pos}</annotation></semantics></math> 则把 based posets 看作一般 posets，取消对<strong>对象必须有最小元</strong>的限制，态射仍是单调映射。因此后一步并不是进一步放宽态射条件。J 通常不是 full inclusion，I 是 full inclusion。</p>
+<p><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>U</mi><mo>:</mo><mrow><mi mathvariant="normal">P</mi><mi mathvariant="normal">o</mi><mi mathvariant="normal">s</mi></mrow><mo>→</mo><mrow><mi mathvariant="normal">S</mi><mi mathvariant="normal">e</mi><mi mathvariant="normal">t</mi></mrow></mrow><annotation encoding="application/x-tex">U:\mathrm{Pos}\to\mathrm{Set}</annotation></semantics></math> 遗忘序、保留底层集合与函数。图中的 UI 和 UIJ 分别表示 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>U</mi><mo>∘</mo><mi>I</mi></mrow><annotation encoding="application/x-tex">U\circ I</annotation></semantics></math> 与 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>U</mi><mo>∘</mo><mi>I</mi><mo>∘</mo><mi>J</mi></mrow><annotation encoding="application/x-tex">U\circ I\circ J</annotation></semantics></math>，所以三条向下路线在各自定义域上相容。这里遗忘 bottom 并不删除它：它仍然是底层集合中的一个元素。</p>
+<p>反方向的两个函子负责添加结构。<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mrow><mi mathvariant="normal">D</mi><mi mathvariant="normal">i</mi><mi mathvariant="normal">s</mi><mi mathvariant="normal">c</mi></mrow><mo>:</mo><mrow><mi mathvariant="normal">S</mi><mi mathvariant="normal">e</mi><mi mathvariant="normal">t</mi></mrow><mo>→</mo><mrow><mi mathvariant="normal">P</mi><mi mathvariant="normal">o</mi><mi mathvariant="normal">s</mi></mrow></mrow><annotation encoding="application/x-tex">\mathrm{Disc}:\mathrm{Set}\to\mathrm{Pos}</annotation></semantics></math> 给 X 赋予离散序，给函数 f 保留同一个函数；因为只有相等的元素可比较，任何集合函数在离散序之间都单调。<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mrow><mi mathvariant="normal">F</mi><mi mathvariant="normal">l</mi><mi mathvariant="normal">a</mi><mi mathvariant="normal">t</mi></mrow><mo>:</mo><mrow><mi mathvariant="normal">S</mi><mi mathvariant="normal">e</mi><mi mathvariant="normal">t</mi></mrow><mo>→</mo><msub><mrow><mi mathvariant="normal">P</mi><mi mathvariant="normal">o</mi><mi mathvariant="normal">s</mi></mrow><mi>s</mi></msub></mrow><annotation encoding="application/x-tex">\mathrm{Flat}:\mathrm{Set}\to\mathrm{Pos}_s</annotation></semantics></math> 则添加新的 bottom 并赋予 flat order，对态射规定：</p>
+<div class="equation"><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mrow><mi mathvariant="normal">F</mi><mi mathvariant="normal">l</mi><mi mathvariant="normal">a</mi><mi mathvariant="normal">t</mi></mrow><mo form="prefix" stretchy="false">(</mo><mi>f</mi><mo form="postfix" stretchy="false">)</mo><mo form="prefix" stretchy="false">(</mo><mi>u</mi><mo form="postfix" stretchy="false">)</mo><mo>=</mo><mrow><mo form="prefix" stretchy="true">{</mo><mtable><mtr><mtd columnalign="left" style="text-align: left"><mi>⊥</mi><mo>,</mo></mtd><mtd columnalign="left" style="text-align: left"><mi>u</mi><mo>=</mo><mi>⊥</mi><mo>,</mo></mtd></mtr><mtr><mtd columnalign="left" style="text-align: left"><mi>f</mi><mo form="prefix" stretchy="false">(</mo><mi>x</mi><mo form="postfix" stretchy="false">)</mo><mo>,</mo></mtd><mtd columnalign="left" style="text-align: left"><mi>u</mi><mo>=</mo><mi>x</mi><mo>∈</mo><mi>X</mi><mi>.</mi></mtd></mtr></mtable></mrow></mrow><annotation encoding="application/x-tex">
+\mathrm{Flat}(f)(u)=\begin{cases}\bot,&amp;u=\bot,\\f(x),&amp;u=x\in X.\end{cases}
+</annotation></semantics></math></div>
+<p>这个扩张既单调又 strict，并且保留恒等映射与复合，所以确实是函子。两种构造不能混同：<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>U</mi><mo>∘</mo><mrow><mi mathvariant="normal">D</mi><mi mathvariant="normal">i</mi><mi mathvariant="normal">s</mi><mi mathvariant="normal">c</mi></mrow><mo>=</mo><msub><mrow><mi mathvariant="normal">I</mi><mi mathvariant="normal">d</mi></mrow><mrow><mi mathvariant="normal">S</mi><mi mathvariant="normal">e</mi><mi mathvariant="normal">t</mi></mrow></msub></mrow><annotation encoding="application/x-tex">U\circ\mathrm{Disc}=\mathrm{Id}_{\mathrm{Set} }</annotation></semantics></math>，而 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>U</mi><mi>I</mi><mi>J</mi><mrow><mi mathvariant="normal">F</mi><mi mathvariant="normal">l</mi><mi mathvariant="normal">a</mi><mi mathvariant="normal">t</mi></mrow><mo form="prefix" stretchy="false">(</mo><mi>X</mi><mo form="postfix" stretchy="false">)</mo><mo>=</mo><msub><mi>X</mi><mi>⊥</mi></msub></mrow><annotation encoding="application/x-tex">UIJ\mathrm{Flat}(X)=X_\bot</annotation></semantics></math> 多了一个元素。图中的双向箭头不表示互逆。它们说明，partial semantics 所需的 bottom、信息序和结构保持映射，能够在同一套 categorical language 中各就其位。</p>
+</section>
+
+<section class="post-section" aria-labelledby="fixed-points">
+<h3 id="fixed-points">9. 从偏序走向不动点</h3>
+<p>不终止使我们引入 partial semantics；循环的可组合解释要求在整个 partial map 上工作；有限展开给出逐渐增长的信息，而 flat order、pointwise order 和 monotone maps 将这一直觉变成了精确的上升链。</p>
+<p>剩下的问题是：<strong>无限多个越来越准确的近似，怎样共同决定整个循环的数学意义？</strong> 我们需要一个对象汇集这条链的信息，并说明为何再次展开不再改变它。这就是 Chapter 6 的方向：chains → suprema → fixed points。偏序提供了讨论近似的语言；至于何时存在合适的上确界、什么条件让它成为所需的不动点，留到下一步。</p>
+</section>
+<p class="material">Material: Henning Basold, <em>Two Voice Semantics</em>, Chapter 5: <em>Elements of Domain Theory I: Partial Orders</em> · <a href="https://gitlab.com/hbasold/two-voice-semantics/-/tree/main/5_orders">Chapter source</a> · <a href="https://gitlab.com/hbasold/two-voice-semantics/-/blob/main/5_orders/bounds.tex">Extrema and category diagram</a>。本文以中文重新组织讲解，补充循环展开公式、例子与 SVG 图示；展开编号采用文中约定。原教材与本文改编内容遵循 <a href="https://creativecommons.org/licenses/by-sa/4.0/">CC BY-SA 4.0</a>。</p>
+
+  </article>
+
+  <nav class="page-navigation"><a href="../index.html">Home</a> / <a href="./index.html">Blog</a></nav>
+  </main>
+
+  <div class="rabbits">
+    <img src="../土豆%20%26%20糯米/rabbits-together.jpeg" alt="Tudou and Nuomi resting together">
+  </div>
+
+</body>
+</html>
