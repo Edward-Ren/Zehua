@@ -18,6 +18,31 @@ body {
   flex-shrink: 0;
 }
 
+.home-page {
+  background: #FFFFFF;
+}
+
+.home-layout {
+  box-sizing: border-box;
+  width: 38%;
+  min-width: min(320px, 100%);
+  max-width: 100%;
+  margin: 0 auto;
+  padding: 24px clamp(16px, 2vw, 24px);
+  min-height: 100vh;
+  min-height: 100svh;
+  border-inline: 1px solid #333;
+}
+
+.home-layout .rabbits {
+  position: static;
+  margin-top: 12px;
+}
+
+.home-layout .rabbits img {
+  max-width: 100%;
+}
+
 .site-contact {
   margin-top: auto;
   padding-top: 38px;
